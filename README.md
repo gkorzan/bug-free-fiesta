@@ -19,4 +19,4 @@ It is a **Rust** project you will need *rustc* and *cargo*
 
 **License**
 ---
-The Weather-App is licensed under the terms of the GPL Open Source license and is available for free.
+The Bug Free Fiesta is licensed under the terms of the GPL Open Source license and is available for free.
