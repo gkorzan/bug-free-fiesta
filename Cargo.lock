@@ -9,6 +9,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a6577517ecd0ee0934f48a7295a89aaef3e6dfafeac404f94c0b3448518ddfe"
 
 [[package]]
+name = "bug-free-fiesta"
+version = "0.1.1"
+dependencies = [
+ "tcod",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -45,11 +52,4 @@ checksum = "730fb27d2261f7c860ae7a61c3ae70277f0836173ceeccb594193abb4fa5f4aa"
 dependencies = [
  "cc",
  "pkg-config",
-]
-
-[[package]]
-name = "tomas-roguelike"
-version = "0.1.0"
-dependencies = [
- "tcod",
 ]
