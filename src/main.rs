@@ -89,7 +89,7 @@ fn system_controls(key: Key, root: &mut Root) -> bool {
         // set fullscreen
         Key {
             code: Enter,
-            // alt: true,
+            alt: true,
             ..
         } => {
             let is_fullscreen = root.is_fullscreen();
