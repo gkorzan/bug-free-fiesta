@@ -23,7 +23,6 @@ impl Entity {
         {
             return;
         }
-        println!("{:?}", self.x + dx);
 
         if map[(self.x + dx) as usize][(self.y + dy) as usize].get_is_passable() {
             self.x += dx;

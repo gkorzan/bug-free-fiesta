@@ -1,7 +1,9 @@
 mod entity;
+mod room;
 mod tile;
 
 use entity::Entity;
+use room::Room;
 use tcod::colors::{Color, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::Key;
@@ -44,9 +46,11 @@ fn main() {
 
     let mut tcod = Tcod { root, con };
 
-    let game: Game = Game { map: make_map() };
+    let (map, p_x, p_y) = make_map();
 
-    let player = entity::Entity::new(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, '@', WHITE);
+    let game: Game = Game { map };
+
+    let player = entity::Entity::new(p_x, p_y, '@', WHITE);
     let npc = entity::Entity::new(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, '@', YELLOW);
 
     let mut entities = [player, npc];
@@ -75,12 +79,12 @@ fn main() {
     }
 }
 
-fn make_map() -> Map {
-    let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
-    map[30][22] = Tile::wall();
-    map[50][22] = Tile::wall();
+fn make_map() -> (Map, i32, i32) {
+    let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
-    map
+    let (player_start_x, player_start_y) = Room::generate_rooms(&mut map);
+
+    (map, player_start_x, player_start_y)
 }
 
 fn render_all(tcod: &mut Tcod, game: &Game, entities: &[Entity]) {
