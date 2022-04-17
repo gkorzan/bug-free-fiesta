@@ -6,7 +6,7 @@ use tcod::colors::{Color, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::Key;
 use tcod::input::KeyCode::*;
-use tile::{Map, Tile};
+use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
 struct Tcod {
     root: Root,
@@ -20,9 +20,6 @@ struct Game {
 const FONT_SIZE: i32 = 10;
 const SCREEN_WIDTH: i32 = 8 * FONT_SIZE;
 const SCREEN_HEIGHT: i32 = 5 * FONT_SIZE;
-
-const MAP_WIDTH: i32 = 80;
-const MAP_HEIGHT: i32 = 45;
 
 const COLOR_DARK_WALL: Color = Color { r: 0, g: 0, b: 100 };
 const COLOR_DARK_GROUND: Color = Color {

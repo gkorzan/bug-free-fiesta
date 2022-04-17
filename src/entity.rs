@@ -1,6 +1,6 @@
 use tcod::{colors::Color, Console};
 
-use crate::tile::Map;
+use crate::tile::{Map, MAP_HEIGHT, MAP_WIDTH};
 
 #[derive(Debug)]
 pub struct Entity {
@@ -16,7 +16,15 @@ impl Entity {
     }
 
     pub fn move_by(&mut self, dx: i32, dy: i32, map: &Map) {
-        println!("{:?}", (self.x, self.y));
+        if self.x + dx >= MAP_WIDTH
+            || (self.y + dy) >= MAP_HEIGHT
+            || self.x + dx < 0
+            || self.y + dy < 0
+        {
+            return;
+        }
+        println!("{:?}", self.x + dx);
+
         if map[(self.x + dx) as usize][(self.y + dy) as usize].get_is_passable() {
             self.x += dx;
             self.y += dy;
