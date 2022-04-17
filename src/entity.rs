@@ -1,4 +1,8 @@
 use tcod::{colors::Color, Console};
+
+use crate::tile::Map;
+
+#[derive(Debug)]
 pub struct Entity {
     x: i32,
     y: i32,
@@ -11,9 +15,12 @@ impl Entity {
         Entity { x, y, char, color }
     }
 
-    pub fn move_by(&mut self, dx: i32, dy: i32) {
-        self.x += dx;
-        self.y += dy;
+    pub fn move_by(&mut self, dx: i32, dy: i32, map: &Map) {
+        println!("{:?}", (self.x, self.y));
+        if map[(self.x + dx) as usize][(self.y + dy) as usize].get_is_passable() {
+            self.x += dx;
+            self.y += dy;
+        }
     }
 
     pub fn draw(&self, con: &mut dyn Console) {
