@@ -1,18 +1,22 @@
 mod entity;
+mod fov;
 mod room;
 mod tile;
 
 use entity::Entity;
+use fov::generate_fov_map;
 use room::Room;
 use tcod::colors::{Color, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::Key;
 use tcod::input::KeyCode::*;
+use tcod::map::Map as FovMap;
 use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
 struct Tcod {
     root: Root,
     con: Offscreen,
+    fov: FovMap,
 }
 
 struct Game {
@@ -29,6 +33,16 @@ const COLOR_DARK_GROUND: Color = Color {
     g: 50,
     b: 150,
 };
+const COLOR_LIGHT_WALL: Color = Color {
+    r: 130,
+    g: 110,
+    b: 50,
+};
+const COLOR_LIGHT_GROUND: Color = Color {
+    r: 200,
+    g: 180,
+    b: 50,
+};
 
 const LIMIT_FPS: i32 = 24;
 
@@ -43,14 +57,17 @@ fn main() {
         .init();
 
     let con = Offscreen::new(SCREEN_WIDTH, SCREEN_HEIGHT);
+    let fov = FovMap::new(MAP_WIDTH, MAP_HEIGHT);
 
-    let mut tcod = Tcod { root, con };
+    let mut tcod = Tcod { root, con, fov };
 
     let (map, p_x, p_y) = make_map();
+    generate_fov_map(&mut tcod.fov, &map);
 
     let game: Game = Game { map };
 
     let player = entity::Entity::new(p_x, p_y, '@', WHITE);
+    let mut previous_player_position = (-1, -1);
     let npc = entity::Entity::new(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, '@', YELLOW);
 
     let mut entities = [player, npc];
@@ -60,7 +77,7 @@ fn main() {
         tcod.con.set_default_foreground(WHITE);
         tcod.con.clear();
 
-        render_all(&mut tcod, &game, &entities);
+        render_all(&mut tcod, &game, &entities, previous_player_position);
 
         // draw everything
         tcod.root.flush();
@@ -69,6 +86,7 @@ fn main() {
         let player = &mut entities[0];
 
         // game controls
+        previous_player_position = player.get_coordinates();
         player_controls(key, player, &game.map);
         let is_exit_presed = system_controls(key, &mut tcod.root);
 
@@ -87,22 +105,48 @@ fn make_map() -> (Map, i32, i32) {
     (map, player_start_x, player_start_y)
 }
 
-fn render_all(tcod: &mut Tcod, game: &Game, entities: &[Entity]) {
+fn render_all(
+    tcod: &mut Tcod,
+    game: &Game,
+    entities: &[Entity],
+    previous_player_position: (i32, i32),
+) {
+    let current_player_coordinates = entities[0].get_coordinates();
+    let do_calculate_fov = previous_player_position != current_player_coordinates;
+    if do_calculate_fov {
+        tcod.fov.compute_fov(
+            current_player_coordinates.0,
+            current_player_coordinates.1,
+            fov::TORCH_RADIUS,
+            fov::FOV_LIGHT_WALLS,
+            fov::FOV_ALGO,
+        );
+    }
     // draw all entities from list
     for entity in entities {
-        entity.draw(&mut tcod.con);
+        let entity_coordinates = entity.get_coordinates();
+        if tcod
+            .fov
+            .is_in_fov(entity_coordinates.0, entity_coordinates.1)
+        {
+            entity.draw(&mut tcod.con);
+        }
     }
     // draw the map
     for y in 0..MAP_HEIGHT {
         for x in 0..MAP_WIDTH {
+            let visible = tcod.fov.is_in_fov(x, y);
             let wall = game.map[x as usize][y as usize].get_is_block_sight();
-            if wall {
-                tcod.con
-                    .set_char_background(x, y, COLOR_DARK_WALL, BackgroundFlag::Set);
-            } else {
-                tcod.con
-                    .set_char_background(x, y, COLOR_DARK_GROUND, BackgroundFlag::Set);
-            }
+
+            let color = match (visible, wall) {
+                (false, false) => COLOR_DARK_GROUND,
+                (false, true) => COLOR_DARK_WALL,
+                (true, false) => COLOR_LIGHT_GROUND,
+                (true, true) => COLOR_LIGHT_WALL,
+            };
+
+            tcod.con
+                .set_char_background(x, y, color, BackgroundFlag::Set);
         }
     }
     // place all the Tile
