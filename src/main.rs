@@ -97,7 +97,7 @@ fn main() {
     }
 }
 
-fn make_map(entities: &mut Vec<Entity>) -> (Map) {
+fn make_map(entities: &mut Vec<Entity>) -> Map {
     let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
     Room::generate_rooms(&mut map, entities);

@@ -1,5 +1,3 @@
-use core::num;
-
 use rand::Rng;
 use tcod::{
     colors::{self, Color},
