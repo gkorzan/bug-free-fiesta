@@ -61,16 +61,16 @@ fn main() {
 
     let mut tcod = Tcod { root, con, fov };
 
-    let (map, p_x, p_y) = make_map();
-    generate_fov_map(&mut tcod.fov, &map);
+    let player = entity::Entity::new(0, 0, '@', WHITE);
+    let mut previous_player_position = (-1, -1);
+    let npc = entity::Entity::new(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, '@', YELLOW);
+    let mut entities = vec![player, npc];
+
+    let mut map = make_map(&mut entities);
+    generate_fov_map(&mut tcod.fov, &mut map);
 
     let mut game: Game = Game { map };
 
-    let player = entity::Entity::new(p_x, p_y, '@', WHITE);
-    let mut previous_player_position = (-1, -1);
-    let npc = entity::Entity::new(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, '@', YELLOW);
-
-    let mut entities = [player, npc];
     // main game loop
     while !tcod.root.window_closed() {
         // prepare and draw scene
@@ -97,12 +97,12 @@ fn main() {
     }
 }
 
-fn make_map() -> (Map, i32, i32) {
+fn make_map(entities: &mut Vec<Entity>) -> (Map) {
     let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
-    let (player_start_x, player_start_y) = Room::generate_rooms(&mut map);
+    Room::generate_rooms(&mut map, entities);
 
-    (map, player_start_x, player_start_y)
+    map
 }
 
 fn render_all(

@@ -2,7 +2,10 @@ use std::cmp;
 
 use rand::Rng;
 
-use crate::tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
+use crate::{
+    entity::Entity,
+    tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
+};
 
 const ROOM_MAX_SIZE: i32 = 10;
 const ROOM_MIN_SIZE: i32 = 6;
@@ -32,16 +35,6 @@ impl Room {
         }
         self
     }
-    pub fn create_h_tunel(c1: i32, c2: i32, l: i32, map: &mut Map) {
-        for c in cmp::min(c1, c2)..(cmp::max(c1, c2) + 1) {
-            map[c as usize][l as usize] = Tile::empty();
-        }
-    }
-    pub fn create_v_tunel(c1: i32, c2: i32, l: i32, map: &mut Map) {
-        for c in cmp::min(c1, c2)..(cmp::max(c1, c2) + 1) {
-            map[l as usize][c as usize] = Tile::empty();
-        }
-    }
     pub fn get_center(&self) -> (i32, i32) {
         let center_x = (self.x1 + self.x2) / 2;
         let center_y = (self.y1 + self.y2) / 2;
@@ -53,7 +46,21 @@ impl Room {
             && (self.y1 <= other.y2)
             && (self.y2 >= other.y1)
     }
-    pub fn generate_rooms(map: &mut Map) -> (i32, i32) {
+    pub fn get_room_coordinates(&self) -> (i32, i32, i32, i32) {
+        (self.x1, self.x2, self.y1, self.y2)
+    }
+
+    pub fn create_h_tunel(c1: i32, c2: i32, l: i32, map: &mut Map) {
+        for c in cmp::min(c1, c2)..(cmp::max(c1, c2) + 1) {
+            map[c as usize][l as usize] = Tile::empty();
+        }
+    }
+    pub fn create_v_tunel(c1: i32, c2: i32, l: i32, map: &mut Map) {
+        for c in cmp::min(c1, c2)..(cmp::max(c1, c2) + 1) {
+            map[l as usize][c as usize] = Tile::empty();
+        }
+    }
+    pub fn generate_rooms(map: &mut Map, entities: &mut Vec<Entity>) {
         let mut rooms = Vec::<Room>::new();
         let mut player_x: i32 = 25;
         let mut player_y: i32 = 23;
@@ -65,7 +72,7 @@ impl Room {
             // random possition walidating screen boarders
             let x = rand::thread_rng().gen_range(0..MAP_WIDTH - w);
             let y = rand::thread_rng().gen_range(0..MAP_HEIGHT - h);
-            let new_room = Room::new(x, y, w, h);
+            let mut new_room = Room::new(x, y, w, h);
 
             let failed = rooms.iter().any(|other_room| new_room.includes(other_room));
 
@@ -92,9 +99,10 @@ impl Room {
                         Room::create_h_tunel(prev_x, new_x, new_y, map);
                     }
                 }
+                Entity::populate_room(&mut new_room, entities);
                 rooms.push(new_room);
             }
         }
-        (player_x, player_y)
+        entities[0].set_position(player_x, player_y);
     }
 }
