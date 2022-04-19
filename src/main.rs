@@ -64,7 +64,7 @@ fn main() {
     let (map, p_x, p_y) = make_map();
     generate_fov_map(&mut tcod.fov, &map);
 
-    let game: Game = Game { map };
+    let mut game: Game = Game { map };
 
     let player = entity::Entity::new(p_x, p_y, '@', WHITE);
     let mut previous_player_position = (-1, -1);
@@ -77,7 +77,7 @@ fn main() {
         tcod.con.set_default_foreground(WHITE);
         tcod.con.clear();
 
-        render_all(&mut tcod, &game, &entities, previous_player_position);
+        render_all(&mut tcod, &mut game, &entities, previous_player_position);
 
         // draw everything
         tcod.root.flush();
@@ -107,7 +107,7 @@ fn make_map() -> (Map, i32, i32) {
 
 fn render_all(
     tcod: &mut Tcod,
-    game: &Game,
+    game: &mut Game,
     entities: &[Entity],
     previous_player_position: (i32, i32),
 ) {
@@ -135,8 +135,9 @@ fn render_all(
     // draw the map
     for y in 0..MAP_HEIGHT {
         for x in 0..MAP_WIDTH {
+            let current_tile = &mut game.map[x as usize][y as usize];
             let visible = tcod.fov.is_in_fov(x, y);
-            let wall = game.map[x as usize][y as usize].get_is_block_sight();
+            let wall = current_tile.get_is_block_sight();
 
             let color = match (visible, wall) {
                 (false, false) => COLOR_DARK_GROUND,
@@ -145,8 +146,13 @@ fn render_all(
                 (true, true) => COLOR_LIGHT_WALL,
             };
 
-            tcod.con
-                .set_char_background(x, y, color, BackgroundFlag::Set);
+            if visible {
+                current_tile.explore();
+            }
+            if current_tile.get_is_explored() {
+                tcod.con
+                    .set_char_background(x, y, color, BackgroundFlag::Set);
+            }
         }
     }
     // place all the Tile

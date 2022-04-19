@@ -7,6 +7,7 @@ pub type Map = Vec<Vec<Tile>>;
 pub struct Tile {
     passable: bool,
     block_sight: bool,
+    explored: bool,
 }
 
 impl Tile {
@@ -14,18 +15,26 @@ impl Tile {
         Tile {
             passable: true,
             block_sight: false,
+            explored: false,
         }
     }
     pub fn wall() -> Self {
         Tile {
             passable: false,
             block_sight: true,
+            explored: false,
         }
     }
-    pub fn get_is_block_sight(self) -> bool {
+    pub fn get_is_block_sight(&self) -> bool {
         self.block_sight
     }
-    pub fn get_is_passable(self) -> bool {
+    pub fn get_is_passable(&self) -> bool {
         self.passable
+    }
+    pub fn get_is_explored(&self) -> bool {
+        self.explored
+    }
+    pub fn explore(&mut self) {
+        self.explored = true;
     }
 }
