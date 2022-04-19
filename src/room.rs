@@ -3,7 +3,7 @@ use std::cmp;
 use rand::Rng;
 
 use crate::{
-    entity::Entity,
+    entity::{Entity, PLAYER},
     tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
 };
 
@@ -103,6 +103,6 @@ impl Room {
                 rooms.push(new_room);
             }
         }
-        entities[0].set_position(player_x, player_y);
+        entities[PLAYER].set_position(player_x, player_y);
     }
 }

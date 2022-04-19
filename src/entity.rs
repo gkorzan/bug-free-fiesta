@@ -12,6 +12,7 @@ use crate::{
 };
 
 const MAX_ROOM_MONSTERS: i32 = 3;
+pub const PLAYER: usize = 0;
 
 #[derive(Debug)]
 pub struct Entity {

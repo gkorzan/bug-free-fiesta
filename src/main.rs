@@ -3,7 +3,7 @@ mod fov;
 mod room;
 mod tile;
 
-use entity::Entity;
+use entity::{Entity, PLAYER};
 use fov::generate_fov_map;
 use room::Room;
 use tcod::colors::{Color, WHITE, YELLOW};
@@ -83,7 +83,7 @@ fn main() {
         tcod.root.flush();
 
         let key = tcod.root.wait_for_keypress(true);
-        let player = &mut entities[0];
+        let player = &mut entities[PLAYER];
 
         // game controls
         previous_player_position = player.get_coordinates();
@@ -111,7 +111,7 @@ fn render_all(
     entities: &[Entity],
     previous_player_position: (i32, i32),
 ) {
-    let current_player_coordinates = entities[0].get_coordinates();
+    let current_player_coordinates = entities[PLAYER].get_coordinates();
     let do_calculate_fov = previous_player_position != current_player_coordinates;
     if do_calculate_fov {
         tcod.fov.compute_fov(
