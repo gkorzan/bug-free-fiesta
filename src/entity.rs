@@ -63,8 +63,14 @@ impl Entity {
     pub fn get_is_blocks(&self) -> bool {
         self.blocks
     }
+    pub fn make_alive(&mut self) {
+        self.alive = true;
+    }
+    pub fn kill(&mut self) {
+        self.alive = false;
+    }
 
-    pub fn populate_room(room: &mut Room, entity: &mut Vec<Entity>) {
+    pub fn populate_room(room: &mut Room, map: &Map, entities: &mut Vec<Entity>) {
         let num_monsters = rand::thread_rng().gen_range(0..=MAX_ROOM_MONSTERS);
         let (x1, x2, y1, y2) = room.get_room_coordinates();
         for _ in 0..num_monsters {
@@ -72,15 +78,16 @@ impl Entity {
             let y = rand::thread_rng().gen_range(y1 + 1..y2);
 
             let do_generate_ork = rand::random::<f32>() < 0.8;
-
-            let monster = if do_generate_ork {
-                Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true)
-            // generate ORK
-            } else {
-                Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true) // gen TROLL
-            };
-
-            entity.push(monster);
+            if !Tile::is_blocked(x, y, map, entities) {
+                let mut monster = if do_generate_ork {
+                    Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true)
+                // generate ORK
+                } else {
+                    Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true) // gen TROLL
+                };
+                monster.make_alive();
+                entities.push(monster);
+            }
         }
     }
 }

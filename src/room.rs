@@ -99,7 +99,7 @@ impl Room {
                         Room::create_h_tunel(prev_x, new_x, new_y, map);
                     }
                 }
-                Entity::populate_room(&mut new_room, entities);
+                Entity::populate_room(&mut new_room, map, entities);
                 rooms.push(new_room);
             }
         }

@@ -61,7 +61,8 @@ fn main() {
 
     let mut tcod = Tcod { root, con, fov };
 
-    let player = entity::Entity::new(0, 0, '@', WHITE, "Player", false);
+    let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
+    player.make_alive();
     let mut previous_player_position = (-1, -1);
     let npc = entity::Entity::new(
         SCREEN_WIDTH / 2 - 5,
