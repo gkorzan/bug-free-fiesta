@@ -61,9 +61,16 @@ fn main() {
 
     let mut tcod = Tcod { root, con, fov };
 
-    let player = entity::Entity::new(0, 0, '@', WHITE);
+    let player = entity::Entity::new(0, 0, '@', WHITE, "Player", false);
     let mut previous_player_position = (-1, -1);
-    let npc = entity::Entity::new(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, '@', YELLOW);
+    let npc = entity::Entity::new(
+        SCREEN_WIDTH / 2 - 5,
+        SCREEN_HEIGHT / 2,
+        '@',
+        YELLOW,
+        "Frederic",
+        true,
+    );
     let mut entities = vec![player, npc];
 
     let mut map = make_map(&mut entities);
@@ -83,11 +90,10 @@ fn main() {
         tcod.root.flush();
 
         let key = tcod.root.wait_for_keypress(true);
-        let player = &mut entities[PLAYER];
 
         // game controls
-        previous_player_position = player.get_coordinates();
-        player_controls(key, player, &game.map);
+        previous_player_position = entities[PLAYER].get_coordinates();
+        player_controls(key, &game.map, &mut entities);
         let is_exit_presed = system_controls(key, &mut tcod.root);
 
         if is_exit_presed {
@@ -167,13 +173,13 @@ fn render_all(
     );
 }
 
-fn player_controls(key: Key, player: &mut entity::Entity, map: &Map) {
+fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) {
     // charecter movement,
     match key {
-        Key { code: Up, .. } => player.move_by(0, -1, map),
-        Key { code: Down, .. } => player.move_by(0, 1, map),
-        Key { code: Left, .. } => player.move_by(-1, 0, map),
-        Key { code: Right, .. } => player.move_by(1, 0, map),
+        Key { code: Up, .. } => Entity::move_by(PLAYER, 0, -1, map, entities),
+        Key { code: Down, .. } => Entity::move_by(PLAYER, 0, 1, map, entities),
+        Key { code: Left, .. } => Entity::move_by(PLAYER, -1, 0, map, entities),
+        Key { code: Right, .. } => Entity::move_by(PLAYER, 1, 0, map, entities),
 
         _ => {}
     }
