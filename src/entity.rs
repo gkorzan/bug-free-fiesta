@@ -12,6 +12,34 @@ use crate::{
 const MAX_ROOM_MONSTERS: i32 = 3;
 pub const PLAYER: usize = 0;
 
+// TODO : refactor player movement code types
+
+// struct Coordinates {
+//     pub x: i32,
+//     pub y: i32,
+// }
+// impl Coordinates {
+//     pub fn new(x: i32, y: i32) -> Coordinates {
+//         Coordinates { x, y }
+//     }
+// }
+// enum Direction {
+//     Up,
+//     Down,
+//     Right,
+//     Left,
+// }
+// impl Direction {
+//     pub fn get_coords(dir: Direction) -> Coordinates {
+//         match dir {
+//             Direction::Up => Coordinates { x: 0, y: -1 },
+//             Direction::Down => Coordinates { x: 0, y: 1 },
+//             Direction::Left => Coordinates { x: -1, y: 0 },
+//             Direction::Right => Coordinates { x: 1, y: 0 },
+//         }
+//     }
+// }
+
 #[derive(Debug)]
 pub struct Entity {
     x: i32,
@@ -48,6 +76,26 @@ impl Entity {
         }
     }
 
+    pub fn player_move_or_attack(_id: usize, dx: i32, dy: i32, map: &Map, entities: &mut [Entity]) {
+        let (mut x, mut y) = entities[PLAYER].get_coordinates();
+        x = x + dx;
+        y = y + dy;
+
+        let target_id = entities
+            .iter()
+            .position(|entity| entity.get_coordinates() == (x, y));
+
+        match target_id {
+            Some(target_id) => {
+                println!(
+                    "The {0} laughs at your puny efforts to attacl him!",
+                    entities[target_id].get_name()
+                )
+            }
+            None => Entity::move_by(PLAYER, dx, dy, &map, entities),
+        }
+    }
+
     pub fn draw(&self, con: &mut dyn Console) {
         con.set_default_foreground(self.color);
         con.put_char(self.x, self.y, self.char, tcod::BackgroundFlag::None)
@@ -69,6 +117,12 @@ impl Entity {
     pub fn kill(&mut self) {
         self.alive = false;
     }
+    pub fn is_alive(&self) -> bool {
+        self.alive
+    }
+    pub fn get_name(&self) -> &String {
+        &self.name
+    }
 
     pub fn populate_room(room: &mut Room, map: &Map, entities: &mut Vec<Entity>) {
         let num_monsters = rand::thread_rng().gen_range(0..=MAX_ROOM_MONSTERS);
@@ -87,6 +141,16 @@ impl Entity {
                 };
                 monster.make_alive();
                 entities.push(monster);
+            }
+        }
+    }
+
+    pub fn mobs_turn(entities: &[Entity], player_took_turn: bool) {
+        if entities[PLAYER].is_alive() && player_took_turn {
+            for entity in entities {
+                if (entity as *const _) != (&entities[PLAYER] as *const _) {
+                    // println!("The {} growls!", entity.get_name());
+                }
             }
         }
     }

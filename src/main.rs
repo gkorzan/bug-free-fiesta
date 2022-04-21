@@ -1,3 +1,4 @@
+mod actions;
 mod entity;
 mod fov;
 mod room;
@@ -94,9 +95,9 @@ fn main() {
 
         // game controls
         previous_player_position = entities[PLAYER].get_coordinates();
-        player_controls(key, &game.map, &mut entities);
+        let took_turn = player_controls(key, &game.map, &mut entities);
         let is_exit_presed = system_controls(key, &mut tcod.root);
-
+        Entity::mobs_turn(&entities, took_turn);
         if is_exit_presed {
             break;
         }
@@ -174,15 +175,27 @@ fn render_all(
     );
 }
 
-fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) {
+fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) -> bool {
     // charecter movement,
-    match key {
-        Key { code: Up, .. } => Entity::move_by(PLAYER, 0, -1, map, entities),
-        Key { code: Down, .. } => Entity::move_by(PLAYER, 0, 1, map, entities),
-        Key { code: Left, .. } => Entity::move_by(PLAYER, -1, 0, map, entities),
-        Key { code: Right, .. } => Entity::move_by(PLAYER, 1, 0, map, entities),
+    match (key, entities[PLAYER].is_alive()) {
+        (Key { code: Up, .. }, _) => {
+            Entity::player_move_or_attack(PLAYER, 0, -1, map, entities);
+            true
+        }
+        (Key { code: Down, .. }, _) => {
+            Entity::player_move_or_attack(PLAYER, 0, 1, map, entities);
+            true
+        }
+        (Key { code: Left, .. }, _) => {
+            Entity::player_move_or_attack(PLAYER, -1, 0, map, entities);
+            true
+        }
+        (Key { code: Right, .. }, _) => {
+            Entity::player_move_or_attack(PLAYER, 1, 0, map, entities);
+            true
+        }
 
-        _ => {}
+        _ => false,
     }
 }
 
