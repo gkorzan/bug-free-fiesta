@@ -49,6 +49,21 @@ pub struct Entity {
     name: String,
     blocks: bool,
     alive: bool,
+    fighter: Option<Fighter>,
+    ai: Option<AI>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Fighter {
+    max_hp: i32,
+    hp: i32,
+    defense: i32,
+    power: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum AI {
+    Basic,
 }
 
 impl Entity {
@@ -61,6 +76,8 @@ impl Entity {
             name: name.to_string(),
             blocks,
             alive: false,
+            fighter: None,
+            ai: None,
         }
     }
 
@@ -123,6 +140,17 @@ impl Entity {
     pub fn get_name(&self) -> &String {
         &self.name
     }
+    pub fn make_fighter(&mut self, max_hp: i32, hp: i32, defense: i32, power: i32) {
+        self.fighter = Some(Fighter {
+            max_hp,
+            hp,
+            defense,
+            power,
+        })
+    }
+    pub fn set_ai(&mut self) {
+        self.ai = Some(AI::Basic);
+    }
 
     pub fn populate_room(room: &mut Room, map: &Map, entities: &mut Vec<Entity>) {
         let num_monsters = rand::thread_rng().gen_range(0..=MAX_ROOM_MONSTERS);
@@ -134,10 +162,16 @@ impl Entity {
             let do_generate_ork = rand::random::<f32>() < 0.8;
             if !Tile::is_blocked(x, y, map, entities) {
                 let mut monster = if do_generate_ork {
-                    Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true)
+                    let mut ork = Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true);
+                    ork.make_fighter(10, 10, 0, 3);
+                    ork.set_ai();
+                    ork
                 // generate ORK
                 } else {
-                    Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true) // gen TROLL
+                    let mut troll = Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true) // gen TROLL
+                    troll.make_fighter(16, 16, 1, 4);
+                    troll.set_ai();
+                    troll
                 };
                 monster.make_alive();
                 entities.push(monster);

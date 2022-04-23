@@ -64,6 +64,7 @@ fn main() {
 
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
     player.make_alive();
+    player.make_fighter(30, 30, 2, 5);
     let mut previous_player_position = (-1, -1);
     let npc = entity::Entity::new(
         SCREEN_WIDTH / 2 - 5,
