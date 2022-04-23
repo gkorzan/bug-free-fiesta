@@ -98,7 +98,7 @@ fn main() {
         previous_player_position = entities[PLAYER].get_coordinates();
         let took_turn = player_controls(key, &game.map, &mut entities);
         let is_exit_presed = system_controls(key, &mut tcod.root);
-        Entity::mobs_turn(&entities, took_turn);
+        Entity::mobs_turn(&game.map, &tcod.fov, &mut entities, took_turn);
         if is_exit_presed {
             break;
         }

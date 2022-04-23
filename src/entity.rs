@@ -1,7 +1,7 @@
 use rand::Rng;
 use tcod::{
     colors::{self, Color},
-    Console,
+    Console, Map as FovMap,
 };
 
 use crate::{
@@ -93,6 +93,44 @@ impl Entity {
         }
     }
 
+    pub fn move_towards(
+        id: usize,
+        target_x: i32,
+        target_y: i32,
+        map: &Map,
+        entities: &mut [Entity],
+    ) {
+        let dx = target_x - entities[id].x;
+        let dy = target_y - entities[id].y;
+
+        let distance = ((dx.pow(2) + dy.pow(2)) as f32).sqrt();
+        let dx = (dx as f32 / distance).round() as i32;
+        let dy = (dy as f32 / distance).round() as i32;
+        Entity::move_by(id, dx, dy, map, entities);
+    }
+
+    pub fn distance_to(&self, other: &Entity) -> f32 {
+        let dx = other.x - self.x;
+        let dy = other.y - self.y;
+        ((dx.pow(2) + dy.pow(2)) as f32).sqrt()
+    }
+
+    pub fn ai_take_turn(monster_id: usize, fov: &FovMap, map: &Map, entities: &mut [Entity]) {
+        let (m_x, m_y) = entities[monster_id].get_coordinates();
+        if fov.is_in_fov(m_x, m_y) {
+            if entities[monster_id].distance_to(&entities[PLAYER]) >= 2.0 {
+                let (p_x, p_y) = entities[PLAYER].get_coordinates();
+                Entity::move_towards(monster_id, p_x, p_y, map, entities);
+            } else if entities[PLAYER].fighter.map_or(false, |f| f.hp > 0) {
+                let monster = &entities[monster_id];
+                println!(
+                    "The attack of the {0} bounces off your shiny metal armour!",
+                    monster.get_name()
+                );
+            }
+        }
+    }
+
     pub fn player_move_or_attack(_id: usize, dx: i32, dy: i32, map: &Map, entities: &mut [Entity]) {
         let (mut x, mut y) = entities[PLAYER].get_coordinates();
         x = x + dx;
@@ -179,11 +217,11 @@ impl Entity {
         }
     }
 
-    pub fn mobs_turn(entities: &[Entity], player_took_turn: bool) {
+    pub fn mobs_turn(map: &Map, fov: &FovMap, entities: &mut [Entity], player_took_turn: bool) {
         if entities[PLAYER].is_alive() && player_took_turn {
-            for entity in entities {
-                if (entity as *const _) != (&entities[PLAYER] as *const _) {
-                    // println!("The {} growls!", entity.get_name());
+            for id in 0..entities.len() {
+                if entities[id].ai.is_some() {
+                    Entity::ai_take_turn(id, fov, map, entities);
                 }
             }
         }
