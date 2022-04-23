@@ -252,9 +252,6 @@ impl Entity {
         }
     }
 
-    pub fn get_name(&self) -> &String {
-        &self.name
-    }
     pub fn make_fighter(
         &mut self,
         max_hp: i32,

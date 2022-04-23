@@ -13,7 +13,6 @@ use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscre
 use tcod::input::Key;
 use tcod::input::KeyCode::*;
 use tcod::map::Map as FovMap;
-use tcod::TextAlignment;
 use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
 struct Tcod {
