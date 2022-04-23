@@ -1,7 +1,7 @@
 use crate::entity::Entity;
 
 pub const MAP_WIDTH: i32 = 80;
-pub const MAP_HEIGHT: i32 = 45;
+pub const MAP_HEIGHT: i32 = 43;
 
 pub type Map = Vec<Vec<Tile>>;
 

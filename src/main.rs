@@ -1,12 +1,14 @@
 mod entity;
 mod fov;
+mod panel;
 mod room;
 mod tile;
 
 use entity::{DeathCallback, Entity, PLAYER};
 use fov::generate_fov_map;
+use panel::render_bar;
 use room::Room;
-use tcod::colors::{Color, WHITE, YELLOW};
+use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_RED, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::Key;
 use tcod::input::KeyCode::*;
@@ -17,6 +19,7 @@ use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 struct Tcod {
     root: Root,
     con: Offscreen,
+    panel: Offscreen,
     fov: FovMap,
 }
 
@@ -27,6 +30,10 @@ struct Game {
 const FONT_SIZE: i32 = 10;
 const SCREEN_WIDTH: i32 = 8 * FONT_SIZE;
 const SCREEN_HEIGHT: i32 = 5 * FONT_SIZE;
+
+pub const BAR_WIDTH: i32 = 20;
+pub const PANEL_HEIGHT: i32 = 7;
+pub const PANEL_Y: i32 = SCREEN_HEIGHT - PANEL_HEIGHT;
 
 const COLOR_DARK_WALL: Color = Color { r: 0, g: 0, b: 100 };
 const COLOR_DARK_GROUND: Color = Color {
@@ -57,10 +64,16 @@ fn main() {
         .title("Rust/libtcod tutorial")
         .init();
 
-    let con = Offscreen::new(SCREEN_WIDTH, SCREEN_HEIGHT);
+    let con = Offscreen::new(MAP_WIDTH, MAP_HEIGHT);
+    let panel = Offscreen::new(SCREEN_WIDTH, PANEL_HEIGHT);
     let fov = FovMap::new(MAP_WIDTH, MAP_HEIGHT);
 
-    let mut tcod = Tcod { root, con, fov };
+    let mut tcod = Tcod {
+        root,
+        con,
+        panel,
+        fov,
+    };
 
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
     player.make_alive();
@@ -176,17 +189,35 @@ fn render_all(
         1.0,
         1.0,
     );
-    tcod.root.set_default_foreground(WHITE);
-    if let Some(fighter) = entities[PLAYER].get_fighter() {
-        let (hp, max_hp) = fighter.get_hp();
-        tcod.root.print_ex(
-            1,
-            SCREEN_HEIGHT - 2,
-            BackgroundFlag::None,
-            TextAlignment::Left,
-            format!("HP: {}/{}", hp, max_hp),
-        )
-    }
+
+    // prepare to render the GUI panel
+    tcod.panel.set_default_background(BLACK);
+    tcod.panel.clear();
+
+    let (hp, max_hp) = entities[PLAYER]
+        .get_fighter()
+        .map_or((0, 0), |f| f.get_hp());
+    render_bar(
+        &mut tcod.panel,
+        1,
+        1,
+        BAR_WIDTH,
+        "HP",
+        hp,
+        max_hp,
+        LIGHT_RED,
+        DARKER_RED,
+    );
+
+    blit(
+        &tcod.panel,
+        (0, 0),
+        (SCREEN_WIDTH, SCREEN_HEIGHT),
+        &mut tcod.root,
+        (0, PANEL_Y),
+        1.0,
+        1.0,
+    );
 }
 
 fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) -> bool {
