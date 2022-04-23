@@ -12,6 +12,7 @@ use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscre
 use tcod::input::Key;
 use tcod::input::KeyCode::*;
 use tcod::map::Map as FovMap;
+use tcod::TextAlignment;
 use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
 struct Tcod {
@@ -174,6 +175,17 @@ fn render_all(
         1.0,
         1.0,
     );
+    tcod.root.set_default_foreground(WHITE);
+    if let Some(fighter) = entities[PLAYER].get_fighter() {
+        let (hp, max_hp) = fighter.get_hp();
+        tcod.root.print_ex(
+            1,
+            SCREEN_HEIGHT - 2,
+            BackgroundFlag::None,
+            TextAlignment::Left,
+            format!("HP: {}/{}", hp, max_hp),
+        )
+    }
 }
 
 fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) -> bool {

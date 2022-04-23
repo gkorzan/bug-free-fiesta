@@ -54,11 +54,16 @@ pub struct Entity {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Fighter {
+pub struct Fighter {
     max_hp: i32,
     hp: i32,
     defense: i32,
     power: i32,
+}
+impl Fighter {
+    pub fn get_hp(&self) -> (i32, i32) {
+        (self.hp, self.max_hp)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -215,6 +220,10 @@ impl Entity {
             power,
         })
     }
+    pub fn get_fighter(&self) -> Option<Fighter> {
+        self.fighter
+    }
+
     pub fn set_ai(&mut self) {
         self.ai = Some(AI::Basic);
     }
