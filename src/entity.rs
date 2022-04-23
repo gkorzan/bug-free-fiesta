@@ -168,7 +168,7 @@ impl Entity {
                     ork
                 // generate ORK
                 } else {
-                    let mut troll = Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true) // gen TROLL
+                    let mut troll = Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true); // gen TROLL
                     troll.make_fighter(16, 16, 1, 4);
                     troll.set_ai();
                     troll
