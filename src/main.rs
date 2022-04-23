@@ -1,4 +1,3 @@
-mod actions;
 mod entity;
 mod fov;
 mod room;
