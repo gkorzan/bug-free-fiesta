@@ -4,7 +4,7 @@ mod fov;
 mod room;
 mod tile;
 
-use entity::{Entity, PLAYER};
+use entity::{DeathCallback, Entity, PLAYER};
 use fov::generate_fov_map;
 use room::Room;
 use tcod::colors::{Color, WHITE, YELLOW};
@@ -65,7 +65,7 @@ fn main() {
 
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
     player.make_alive();
-    player.make_fighter(30, 30, 2, 5);
+    player.make_fighter(30, 30, 2, 5, DeathCallback::Player);
     let mut previous_player_position = (-1, -1);
     let npc = entity::Entity::new(
         SCREEN_WIDTH / 2 - 5,
@@ -133,14 +133,16 @@ fn render_all(
         );
     }
     // draw all entities from list
-    for entity in entities {
-        let entity_coordinates = entity.get_coordinates();
-        if tcod
-            .fov
-            .is_in_fov(entity_coordinates.0, entity_coordinates.1)
-        {
-            entity.draw(&mut tcod.con);
-        }
+    let mut to_draw: Vec<_> = entities
+        .iter()
+        .filter(|e1| {
+            let e_pos = e1.get_coordinates();
+            tcod.fov.is_in_fov(e_pos.0, e_pos.1)
+        })
+        .collect();
+    to_draw.sort_by(|o1, o2| o1.get_is_blocks().cmp(&o2.get_is_blocks()));
+    for entity in to_draw {
+        entity.draw(&mut tcod.con);
     }
     // draw the map
     for y in 0..MAP_HEIGHT {

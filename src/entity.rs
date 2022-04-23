@@ -1,6 +1,6 @@
 use rand::Rng;
 use tcod::{
-    colors::{self, Color},
+    colors::{self, Color, DARK_RED},
     Console, Map as FovMap,
 };
 
@@ -54,11 +54,28 @@ pub struct Entity {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DeathCallback {
+    Player,
+    Monster,
+}
+impl DeathCallback {
+    fn callback(self, entity: &mut Entity) {
+        use DeathCallback::{Monster, Player};
+        let callback: fn(&mut Entity) = match self {
+            Player => Entity::player_death,
+            Monster => Entity::monster_death,
+        };
+        callback(entity);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Fighter {
     max_hp: i32,
     hp: i32,
     defense: i32,
     power: i32,
+    on_death: DeathCallback,
 }
 impl Fighter {
     pub fn get_hp(&self) -> (i32, i32) {
@@ -145,13 +162,16 @@ impl Entity {
     }
 
     pub fn player_move_or_attack(_id: usize, dx: i32, dy: i32, map: &Map, entities: &mut [Entity]) {
+        if !entities[PLAYER].is_alive() {
+            return;
+        }
         let (mut x, mut y) = entities[PLAYER].get_coordinates();
         x = x + dx;
         y = y + dy;
 
         let target_id = entities
             .iter()
-            .position(|entity| entity.get_coordinates() == (x, y));
+            .position(|entity| entity.fighter.is_some() && entity.get_coordinates() == (x, y));
 
         match target_id {
             Some(target_id) => {
@@ -182,6 +202,22 @@ impl Entity {
     }
     pub fn kill(&mut self) {
         self.alive = false;
+        self.char = '%';
+        self.color = DARK_RED;
+    }
+    fn player_death(player: &mut Entity) {
+        println!("You died!");
+
+        player.kill();
+    }
+    fn monster_death(monster: &mut Entity) {
+        println!("{} is dead!", monster.name);
+
+        monster.kill();
+        monster.blocks = false;
+        monster.fighter = None;
+        monster.ai = None;
+        monster.name = format!("remains of {}", monster.name);
     }
     pub fn is_alive(&self) -> bool {
         self.alive
@@ -190,6 +226,13 @@ impl Entity {
         if let Some(fighter) = self.fighter.as_mut() {
             if damage > 0 {
                 fighter.hp -= damage;
+            }
+        }
+
+        if let Some(fighter) = self.fighter {
+            if fighter.hp <= 0 {
+                self.alive = false;
+                fighter.on_death.callback(self)
             }
         }
     }
@@ -212,12 +255,20 @@ impl Entity {
     pub fn get_name(&self) -> &String {
         &self.name
     }
-    pub fn make_fighter(&mut self, max_hp: i32, hp: i32, defense: i32, power: i32) {
+    pub fn make_fighter(
+        &mut self,
+        max_hp: i32,
+        hp: i32,
+        defense: i32,
+        power: i32,
+        on_death: DeathCallback,
+    ) {
         self.fighter = Some(Fighter {
             max_hp,
             hp,
             defense,
             power,
+            on_death,
         })
     }
     pub fn get_fighter(&self) -> Option<Fighter> {
@@ -239,13 +290,13 @@ impl Entity {
             if !Tile::is_blocked(x, y, map, entities) {
                 let mut monster = if do_generate_ork {
                     let mut ork = Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true);
-                    ork.make_fighter(10, 10, 0, 3);
+                    ork.make_fighter(10, 10, 0, 3, DeathCallback::Monster);
                     ork.set_ai();
                     ork
                 // generate ORK
                 } else {
                     let mut troll = Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true); // gen TROLL
-                    troll.make_fighter(16, 16, 1, 4);
+                    troll.make_fighter(16, 16, 1, 4, DeathCallback::Monster);
                     troll.set_ai();
                     troll
                 };
