@@ -115,6 +115,17 @@ impl Entity {
         ((dx.pow(2) + dy.pow(2)) as f32).sqrt()
     }
 
+    fn mut_two<T>(first_index: usize, second_index: usize, items: &mut [T]) -> (&mut T, &mut T) {
+        assert!(first_index != second_index);
+        let split_at_index = std::cmp::max(first_index, second_index);
+        let (first_slice, second_slice) = items.split_at_mut(split_at_index);
+        if first_index < second_index {
+            (&mut first_slice[first_index], &mut second_slice[0])
+        } else {
+            (&mut second_slice[0], &mut first_slice[second_index])
+        }
+    }
+
     pub fn ai_take_turn(monster_id: usize, fov: &FovMap, map: &Map, entities: &mut [Entity]) {
         let (m_x, m_y) = entities[monster_id].get_coordinates();
         if fov.is_in_fov(m_x, m_y) {
@@ -122,11 +133,8 @@ impl Entity {
                 let (p_x, p_y) = entities[PLAYER].get_coordinates();
                 Entity::move_towards(monster_id, p_x, p_y, map, entities);
             } else if entities[PLAYER].fighter.map_or(false, |f| f.hp > 0) {
-                let monster = &entities[monster_id];
-                println!(
-                    "The attack of the {0} bounces off your shiny metal armour!",
-                    monster.get_name()
-                );
+                let (monster, player) = Entity::mut_two(monster_id, PLAYER, entities);
+                monster.attack(player);
             }
         }
     }
@@ -142,10 +150,8 @@ impl Entity {
 
         match target_id {
             Some(target_id) => {
-                println!(
-                    "The {0} laughs at your puny efforts to attacl him!",
-                    entities[target_id].get_name()
-                )
+                let (player, target) = Entity::mut_two(PLAYER, target_id, entities);
+                player.attack(target);
             }
             None => Entity::move_by(PLAYER, dx, dy, &map, entities),
         }
@@ -175,6 +181,29 @@ impl Entity {
     pub fn is_alive(&self) -> bool {
         self.alive
     }
+    pub fn take_damage(&mut self, damage: i32) {
+        if let Some(fighter) = self.fighter.as_mut() {
+            if damage > 0 {
+                fighter.hp -= damage;
+            }
+        }
+    }
+    pub fn attack(&mut self, target: &mut Entity) {
+        let damage = self.fighter.map_or(0, |f| f.power) - target.fighter.map_or(0, |f| f.defense);
+        if damage > 0 {
+            println!(
+                "{0} attacks {1} for {2} hit points.",
+                self.name, target.name, damage
+            );
+            target.take_damage(damage);
+        } else {
+            println!(
+                "{0} attacks {1} but it has no effect!",
+                self.name, target.name
+            );
+        }
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
