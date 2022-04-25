@@ -197,6 +197,9 @@ impl Entity {
     pub fn get_is_blocks(&self) -> bool {
         self.blocks
     }
+    pub fn get_name(&self) -> String {
+        return self.name.clone();
+    }
     pub fn make_alive(&mut self) {
         self.alive = true;
     }
@@ -204,6 +207,7 @@ impl Entity {
         self.alive = false;
         self.char = '%';
         self.color = DARK_RED;
+        self.name = format!("remains of {}", self.name);
     }
     fn player_death(player: &mut Entity) {
         println!("You died!");
@@ -217,7 +221,6 @@ impl Entity {
         monster.blocks = false;
         monster.fighter = None;
         monster.ai = None;
-        monster.name = format!("remains of {}", monster.name);
     }
     pub fn is_alive(&self) -> bool {
         self.alive

@@ -8,11 +8,12 @@ use entity::{DeathCallback, Entity, PLAYER};
 use fov::generate_fov_map;
 use panel::render_bar;
 use room::Room;
-use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_RED, WHITE, YELLOW};
+use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
-use tcod::input::Key;
-use tcod::input::KeyCode::*;
+use tcod::input::{self, KeyCode::*};
+use tcod::input::{Event, Key, Mouse};
 use tcod::map::Map as FovMap;
+use tcod::TextAlignment;
 use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
 struct Tcod {
@@ -20,6 +21,8 @@ struct Tcod {
     con: Offscreen,
     panel: Offscreen,
     fov: FovMap,
+    key: Key,
+    mouse: Mouse,
 }
 
 struct Game {
@@ -66,12 +69,16 @@ fn main() {
     let con = Offscreen::new(MAP_WIDTH, MAP_HEIGHT);
     let panel = Offscreen::new(SCREEN_WIDTH, PANEL_HEIGHT);
     let fov = FovMap::new(MAP_WIDTH, MAP_HEIGHT);
+    let key = Default::default();
+    let mouse = Default::default();
 
     let mut tcod = Tcod {
         root,
         con,
         panel,
         fov,
+        key,
+        mouse,
     };
 
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
@@ -99,17 +106,23 @@ fn main() {
         tcod.con.set_default_foreground(WHITE);
         tcod.con.clear();
 
+        match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
+            Some((_, Event::Mouse(m))) => tcod.mouse = m,
+            Some((_, Event::Key(k))) => tcod.key = k,
+            _ => tcod.key = Default::default(),
+        }
+
         render_all(&mut tcod, &mut game, &entities, previous_player_position);
 
         // draw everything
         tcod.root.flush();
 
-        let key = tcod.root.wait_for_keypress(true);
+        // let key = tcod.root.wait_for_keypress(true);
 
         // game controls
         previous_player_position = entities[PLAYER].get_coordinates();
-        let took_turn = player_controls(key, &game.map, &mut entities);
-        let is_exit_presed = system_controls(key, &mut tcod.root);
+        let took_turn = player_controls(tcod.key, &game.map, &mut entities);
+        let is_exit_presed = system_controls(tcod.key, &mut tcod.root);
         Entity::mobs_turn(&game.map, &tcod.fov, &mut entities, took_turn);
         if is_exit_presed {
             break;
@@ -208,6 +221,15 @@ fn render_all(
         DARKER_RED,
     );
 
+    tcod.panel.set_default_foreground(LIGHT_GREY);
+    tcod.panel.print_ex(
+        1,
+        0,
+        BackgroundFlag::None,
+        TextAlignment::Left,
+        get_names_under_mouse(tcod.mouse, entities, &tcod.fov),
+    );
+
     blit(
         &tcod.panel,
         (0, 0),
@@ -221,20 +243,20 @@ fn render_all(
 
 fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) -> bool {
     // charecter movement,
-    match (key, entities[PLAYER].is_alive()) {
-        (Key { code: Up, .. }, _) => {
+    match (key, key.text(), entities[PLAYER].is_alive()) {
+        (Key { code: Up, .. }, _, _) => {
             Entity::player_move_or_attack(PLAYER, 0, -1, map, entities);
             true
         }
-        (Key { code: Down, .. }, _) => {
+        (Key { code: Down, .. }, _, _) => {
             Entity::player_move_or_attack(PLAYER, 0, 1, map, entities);
             true
         }
-        (Key { code: Left, .. }, _) => {
+        (Key { code: Left, .. }, _, _) => {
             Entity::player_move_or_attack(PLAYER, -1, 0, map, entities);
             true
         }
-        (Key { code: Right, .. }, _) => {
+        (Key { code: Right, .. }, _, _) => {
             Entity::player_move_or_attack(PLAYER, 1, 0, map, entities);
             true
         }
@@ -260,4 +282,19 @@ fn system_controls(key: Key, root: &mut Root) -> bool {
         }
         _ => false,
     }
+}
+
+fn get_names_under_mouse(mouse: Mouse, entities: &[Entity], fov_map: &FovMap) -> String {
+    let (x, y) = (mouse.cx as i32, mouse.cy as i32);
+
+    let names = entities
+        .iter()
+        .filter(|ent| {
+            ent.get_coordinates() == (x, y)
+                && fov_map.is_in_fov(ent.get_coordinates().0, ent.get_coordinates().1)
+        })
+        .map(|ent| ent.get_name())
+        .collect::<Vec<_>>();
+
+    names.join(", ")
 }
