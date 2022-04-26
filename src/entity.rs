@@ -1,6 +1,6 @@
 use rand::Rng;
 use tcod::{
-    colors::{self, Color, DARK_RED},
+    colors::{self, Color, DARK_RED, VIOLET},
     Console, Map as FovMap,
 };
 
@@ -10,6 +10,7 @@ use crate::{
 };
 
 const MAX_ROOM_MONSTERS: i32 = 3;
+const MAX_ROOM_ITEMS: i32 = 2;
 pub const PLAYER: usize = 0;
 
 // TODO : refactor player movement code types
@@ -302,6 +303,19 @@ impl Entity {
                 };
                 monster.make_alive();
                 entities.push(monster);
+            }
+        }
+
+        // add items to the room
+        let num_items = rand::thread_rng().gen_range(0..=MAX_ROOM_ITEMS);
+
+        for _ in 0..num_items {
+            let x = rand::thread_rng().gen_range(x1 + 1..x2);
+            let y = rand::thread_rng().gen_range(y1 + 1..y2);
+
+            if !Tile::is_blocked(x, y, map, entities) {
+                let mut item = Entity::new(x, y, '!', VIOLET, "healing potion", false);
+                entities.push(item);
             }
         }
     }
