@@ -1,12 +1,14 @@
 use rand::Rng;
 use tcod::{
-    colors::{self, Color, DARK_RED, VIOLET},
+    colors::{self, Color, DARK_RED, ORANGE, RED, VIOLET, WHITE},
     Console, Map as FovMap,
 };
 
 use crate::{
+    message::{self, Messages},
     room::Room,
     tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
+    Game,
 };
 
 const MAX_ROOM_MONSTERS: i32 = 3;
@@ -60,13 +62,13 @@ pub enum DeathCallback {
     Monster,
 }
 impl DeathCallback {
-    fn callback(self, entity: &mut Entity) {
+    fn callback(self, entity: &mut Entity, messages: &mut Messages) {
         use DeathCallback::{Monster, Player};
-        let callback: fn(&mut Entity) = match self {
+        let callback: fn(&mut Entity, &mut Messages) = match self {
             Player => Entity::player_death,
             Monster => Entity::monster_death,
         };
-        callback(entity);
+        callback(entity, messages);
     }
 }
 
@@ -149,20 +151,26 @@ impl Entity {
         }
     }
 
-    pub fn ai_take_turn(monster_id: usize, fov: &FovMap, map: &Map, entities: &mut [Entity]) {
+    pub fn ai_take_turn(monster_id: usize, fov: &FovMap, game: &mut Game, entities: &mut [Entity]) {
         let (m_x, m_y) = entities[monster_id].get_coordinates();
         if fov.is_in_fov(m_x, m_y) {
             if entities[monster_id].distance_to(&entities[PLAYER]) >= 2.0 {
                 let (p_x, p_y) = entities[PLAYER].get_coordinates();
-                Entity::move_towards(monster_id, p_x, p_y, map, entities);
+                Entity::move_towards(monster_id, p_x, p_y, &game.map, entities);
             } else if entities[PLAYER].fighter.map_or(false, |f| f.hp > 0) {
                 let (monster, player) = Entity::mut_two(monster_id, PLAYER, entities);
-                monster.attack(player);
+                monster.attack(player, &mut game.messages);
             }
         }
     }
 
-    pub fn player_move_or_attack(_id: usize, dx: i32, dy: i32, map: &Map, entities: &mut [Entity]) {
+    pub fn player_move_or_attack(
+        _id: usize,
+        dx: i32,
+        dy: i32,
+        game: &mut Game,
+        entities: &mut [Entity],
+    ) {
         if !entities[PLAYER].is_alive() {
             return;
         }
@@ -177,9 +185,9 @@ impl Entity {
         match target_id {
             Some(target_id) => {
                 let (player, target) = Entity::mut_two(PLAYER, target_id, entities);
-                player.attack(target);
+                player.attack(target, &mut game.messages);
             }
-            None => Entity::move_by(PLAYER, dx, dy, &map, entities),
+            None => Entity::move_by(PLAYER, dx, dy, &game.map, entities),
         }
     }
 
@@ -210,13 +218,13 @@ impl Entity {
         self.color = DARK_RED;
         self.name = format!("remains of {}", self.name);
     }
-    fn player_death(player: &mut Entity) {
-        println!("You died!");
+    fn player_death(player: &mut Entity, messages: &mut Messages) {
+        messages.add("You died!", RED);
 
         player.kill();
     }
-    fn monster_death(monster: &mut Entity) {
-        println!("{} is dead!", monster.name);
+    fn monster_death(monster: &mut Entity, messages: &mut Messages) {
+        messages.add(format!("{} is dead!", monster.name), ORANGE);
 
         monster.kill();
         monster.blocks = false;
@@ -226,7 +234,7 @@ impl Entity {
     pub fn is_alive(&self) -> bool {
         self.alive
     }
-    pub fn take_damage(&mut self, damage: i32) {
+    pub fn take_damage(&mut self, damage: i32, messages: &mut Messages) {
         if let Some(fighter) = self.fighter.as_mut() {
             if damage > 0 {
                 fighter.hp -= damage;
@@ -236,22 +244,28 @@ impl Entity {
         if let Some(fighter) = self.fighter {
             if fighter.hp <= 0 {
                 self.alive = false;
-                fighter.on_death.callback(self)
+                fighter.on_death.callback(self, messages)
             }
         }
     }
-    pub fn attack(&mut self, target: &mut Entity) {
+    pub fn attack(&mut self, target: &mut Entity, messages: &mut Messages) {
         let damage = self.fighter.map_or(0, |f| f.power) - target.fighter.map_or(0, |f| f.defense);
         if damage > 0 {
-            println!(
-                "{0} attacks {1} for {2} hit points.",
-                self.name, target.name, damage
+            messages.add(
+                format!(
+                    "{0} attacks {1} for {2} hit points.",
+                    self.name, target.name, damage
+                ),
+                WHITE,
             );
-            target.take_damage(damage);
+            target.take_damage(damage, messages);
         } else {
-            println!(
-                "{0} attacks {1} but it has no effect!",
-                self.name, target.name
+            messages.add(
+                format!(
+                    "{0} attacks {1} but it has no effect!",
+                    self.name, target.name
+                ),
+                WHITE,
             );
         }
     }
@@ -320,11 +334,16 @@ impl Entity {
         }
     }
 
-    pub fn mobs_turn(map: &Map, fov: &FovMap, entities: &mut [Entity], player_took_turn: bool) {
+    pub fn mobs_turn(
+        game: &mut Game,
+        fov: &FovMap,
+        entities: &mut [Entity],
+        player_took_turn: bool,
+    ) {
         if entities[PLAYER].is_alive() && player_took_turn {
             for id in 0..entities.len() {
                 if entities[id].ai.is_some() {
-                    Entity::ai_take_turn(id, fov, map, entities);
+                    Entity::ai_take_turn(id, fov, game, entities);
                 }
             }
         }

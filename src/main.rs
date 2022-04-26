@@ -1,14 +1,16 @@
 mod entity;
 mod fov;
+mod message;
 mod panel;
 mod room;
 mod tile;
 
 use entity::{DeathCallback, Entity, PLAYER};
 use fov::generate_fov_map;
+use message::{Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X};
 use panel::render_bar;
 use room::Room;
-use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, WHITE, YELLOW};
+use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, RED, WHITE, YELLOW};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::{self, KeyCode::*};
 use tcod::input::{Event, Key, Mouse};
@@ -25,8 +27,9 @@ struct Tcod {
     mouse: Mouse,
 }
 
-struct Game {
+pub struct Game {
     map: Map,
+    messages: Messages,
 }
 
 const FONT_SIZE: i32 = 10;
@@ -97,8 +100,13 @@ fn main() {
 
     let mut map = make_map(&mut entities);
     generate_fov_map(&mut tcod.fov, &mut map);
+    let messages = Messages::new();
 
-    let mut game: Game = Game { map };
+    let mut game: Game = Game { map, messages };
+    game.messages.add(
+        "Welcome stranger! Prepre to perish in the Tombs of the Ancient Kings.",
+        RED,
+    );
 
     // main game loop
     while !tcod.root.window_closed() {
@@ -121,9 +129,9 @@ fn main() {
 
         // game controls
         previous_player_position = entities[PLAYER].get_coordinates();
-        let took_turn = player_controls(tcod.key, &game.map, &mut entities);
+        let took_turn = player_controls(tcod.key, &mut game, &mut entities);
         let is_exit_presed = system_controls(tcod.key, &mut tcod.root);
-        Entity::mobs_turn(&game.map, &tcod.fov, &mut entities, took_turn);
+        Entity::mobs_turn(&mut game, &tcod.fov, &mut entities, took_turn);
         if is_exit_presed {
             break;
         }
@@ -230,6 +238,17 @@ fn render_all(
         get_names_under_mouse(tcod.mouse, entities, &tcod.fov),
     );
 
+    let mut y = MSG_HEIGHT as i32;
+    for &(ref msg, color) in game.messages.iter().rev() {
+        let msg_height = tcod.panel.get_height_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+        y -= msg_height;
+        if y < 0 {
+            break;
+        }
+        tcod.panel.set_default_foreground(color);
+        tcod.panel.print_rect(MSG_X, y, MSG_WIDTH, 0, msg);
+    }
+
     blit(
         &tcod.panel,
         (0, 0),
@@ -241,23 +260,23 @@ fn render_all(
     );
 }
 
-fn player_controls(key: Key, map: &Map, entities: &mut [Entity]) -> bool {
+fn player_controls(key: Key, game: &mut Game, entities: &mut [Entity]) -> bool {
     // charecter movement,
     match (key, key.text(), entities[PLAYER].is_alive()) {
         (Key { code: Up, .. }, _, _) => {
-            Entity::player_move_or_attack(PLAYER, 0, -1, map, entities);
+            Entity::player_move_or_attack(PLAYER, 0, -1, game, entities);
             true
         }
         (Key { code: Down, .. }, _, _) => {
-            Entity::player_move_or_attack(PLAYER, 0, 1, map, entities);
+            Entity::player_move_or_attack(PLAYER, 0, 1, game, entities);
             true
         }
         (Key { code: Left, .. }, _, _) => {
-            Entity::player_move_or_attack(PLAYER, -1, 0, map, entities);
+            Entity::player_move_or_attack(PLAYER, -1, 0, game, entities);
             true
         }
         (Key { code: Right, .. }, _, _) => {
-            Entity::player_move_or_attack(PLAYER, 1, 0, map, entities);
+            Entity::player_move_or_attack(PLAYER, 1, 0, game, entities);
             true
         }
 
