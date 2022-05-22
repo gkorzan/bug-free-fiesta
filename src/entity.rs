@@ -1,18 +1,19 @@
 use rand::Rng;
 use tcod::{
-    colors::{self, Color, DARK_RED, ORANGE, RED, VIOLET, WHITE},
+    colors::{self, Color, DARK_RED, GREEN, LIGHT_VIOLET, ORANGE, RED, VIOLET, WHITE},
     Console, Map as FovMap,
 };
 
 use crate::{
-    message::{self, Messages},
+    message::Messages,
     room::Room,
     tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
-    Game,
+    Game, Tcod,
 };
 
 const MAX_ROOM_MONSTERS: i32 = 3;
 const MAX_ROOM_ITEMS: i32 = 2;
+const HEAL_AMOUNT: i32 = 4;
 pub const PLAYER: usize = 0;
 
 // TODO : refactor player movement code types
@@ -54,6 +55,17 @@ pub struct Entity {
     alive: bool,
     fighter: Option<Fighter>,
     ai: Option<AI>,
+    item: Option<Item>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Item {
+    Heal,
+}
+
+pub enum UseResult {
+    UsedUp,
+    Cancelled,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -103,6 +115,7 @@ impl Entity {
             alive: false,
             fighter: None,
             ai: None,
+            item: None,
         }
     }
 
@@ -209,6 +222,9 @@ impl Entity {
     pub fn get_name(&self) -> String {
         return self.name.clone();
     }
+    pub fn get_item(&self) -> Option<Item> {
+        self.item
+    }
     pub fn make_alive(&mut self) {
         self.alive = true;
     }
@@ -267,6 +283,15 @@ impl Entity {
                 ),
                 WHITE,
             );
+        }
+    }
+
+    pub fn heal(&mut self, amount: i32) {
+        if let Some(ref mut fighter) = self.fighter {
+            fighter.hp += amount;
+            if fighter.hp > fighter.max_hp {
+                fighter.hp = fighter.max_hp;
+            }
         }
     }
 
@@ -329,6 +354,7 @@ impl Entity {
 
             if !Tile::is_blocked(x, y, map, entities) {
                 let mut item = Entity::new(x, y, '!', VIOLET, "healing potion", false);
+                item.item = Some(Item::Heal);
                 entities.push(item);
             }
         }
@@ -347,5 +373,36 @@ impl Entity {
                 }
             }
         }
+    }
+
+    pub fn pick_item_up(id: usize, game: &mut Game, entities: &mut Vec<Entity>) {
+        if game.inventory.len() >= 26 {
+            game.messages.add(
+                format!(
+                    "You can't pick {}, inventory full!",
+                    entities[id].get_name()
+                ),
+                RED,
+            );
+        } else {
+            let item = entities.swap_remove(id);
+            game.messages
+                .add(format!("You picked up a {}", item.get_name()), GREEN);
+            game.inventory.push(item);
+        }
+    }
+
+    pub fn cast_heal(_inventory_id: usize, game: &mut Game, entities: &mut [Entity]) -> UseResult {
+        if let Some(fighter) = entities[PLAYER].fighter {
+            if fighter.hp == fighter.max_hp {
+                game.messages.add("You are already at full health", RED);
+                return UseResult::Cancelled;
+            }
+            game.messages
+                .add("Your wounds start to feel better!", LIGHT_VIOLET);
+            entities[PLAYER].heal(HEAL_AMOUNT);
+            return UseResult::UsedUp;
+        }
+        UseResult::Cancelled
     }
 }

@@ -5,7 +5,7 @@ mod panel;
 mod room;
 mod tile;
 
-use entity::{DeathCallback, Entity, PLAYER};
+use entity::{DeathCallback, Entity, Item, UseResult, PLAYER};
 use fov::generate_fov_map;
 use message::{Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X};
 use panel::render_bar;
@@ -30,6 +30,7 @@ struct Tcod {
 pub struct Game {
     map: Map,
     messages: Messages,
+    inventory: Vec<Entity>,
 }
 
 const FONT_SIZE: i32 = 10;
@@ -58,6 +59,7 @@ const COLOR_LIGHT_GROUND: Color = Color {
 };
 
 const LIMIT_FPS: i32 = 24;
+const INVENTORY_WIDTH: i32 = 50;
 
 fn main() {
     tcod::system::set_fps(LIMIT_FPS);
@@ -101,8 +103,13 @@ fn main() {
     let mut map = make_map(&mut entities);
     generate_fov_map(&mut tcod.fov, &mut map);
     let messages = Messages::new();
+    let inventory: Vec<Entity> = vec![];
 
-    let mut game: Game = Game { map, messages };
+    let mut game: Game = Game {
+        map,
+        messages,
+        inventory,
+    };
     game.messages.add(
         "Welcome stranger! Prepre to perish in the Tombs of the Ancient Kings.",
         RED,
@@ -129,7 +136,7 @@ fn main() {
 
         // game controls
         previous_player_position = entities[PLAYER].get_coordinates();
-        let took_turn = player_controls(tcod.key, &mut game, &mut entities);
+        let took_turn = player_controls(tcod.key, &mut game, &mut entities, &mut tcod);
         let is_exit_presed = system_controls(tcod.key, &mut tcod.root);
         Entity::mobs_turn(&mut game, &tcod.fov, &mut entities, took_turn);
         if is_exit_presed {
@@ -260,7 +267,7 @@ fn render_all(
     );
 }
 
-fn player_controls(key: Key, game: &mut Game, entities: &mut [Entity]) -> bool {
+fn player_controls(key: Key, game: &mut Game, entities: &mut Vec<Entity>, tcod: &mut Tcod) -> bool {
     // charecter movement,
     match (key, key.text(), entities[PLAYER].is_alive()) {
         (Key { code: Up, .. }, _, _) => {
@@ -279,7 +286,27 @@ fn player_controls(key: Key, game: &mut Game, entities: &mut [Entity]) -> bool {
             Entity::player_move_or_attack(PLAYER, 1, 0, game, entities);
             true
         }
-
+        (Key { code: Text, .. }, "g", true) => {
+            let item_id = entities.iter().position(|entity| {
+                entity.get_coordinates() == entities[PLAYER].get_coordinates()
+                    && entity.get_item().is_some()
+            });
+            if let Some(item_id) = item_id {
+                Entity::pick_item_up(item_id, game, entities);
+            }
+            false
+        }
+        (Key { code: Text, .. }, "i", true) => {
+            let inventory_index = inventory_menu(
+                &game.inventory,
+                "Press the key next to an item or any ohter to close menu\n",
+                &mut tcod.root,
+            );
+            if let Some(inventory_index) = inventory_index {
+                use_item(inventory_index, tcod, game, entities);
+            }
+            false
+        }
         _ => false,
     }
 }
@@ -316,4 +343,96 @@ fn get_names_under_mouse(mouse: Mouse, entities: &[Entity], fov_map: &FovMap) ->
         .collect::<Vec<_>>();
 
     names.join(", ")
+}
+
+fn menu<T: AsRef<str>>(header: &str, options: &[T], width: i32, root: &mut Root) -> Option<usize> {
+    assert!(
+        options.len() <= 26,
+        "Can't have a menu with more than 26 options"
+    );
+    let header_height = root.get_height_rect(0, 0, width, SCREEN_HEIGHT, header);
+    let height = options.len() as i32 + header_height;
+
+    let mut window = Offscreen::new(width, height);
+
+    window.set_default_foreground(WHITE);
+    window.print_rect_ex(
+        0,
+        0,
+        width,
+        height,
+        BackgroundFlag::None,
+        TextAlignment::Left,
+        header,
+    );
+    for (index, option_text) in options.iter().enumerate() {
+        let menu_letter = (b'a' + index as u8) as char;
+        let text = format!("({}) {}", menu_letter, option_text.as_ref());
+        window.print_ex(
+            0,
+            header_height + index as i32,
+            BackgroundFlag::None,
+            TextAlignment::Left,
+            text,
+        );
+    }
+    let x = SCREEN_WIDTH / 2 - width / 2;
+    let y = SCREEN_HEIGHT / 2 - height / 2;
+    blit(&window, (0, 0), (width, height), root, (x, y), 1.0, 0.7);
+
+    root.flush();
+    let key = root.wait_for_keypress(true);
+
+    if key.printable.is_alphabetic() {
+        let index = key.printable.to_ascii_lowercase() as usize - 'a' as usize;
+        if index < options.len() {
+            Some(index)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn inventory_menu(inventory: &[Entity], header: &str, root: &mut Root) -> Option<usize> {
+    let options = if inventory.len() == 0 {
+        vec!["Inventory is empty.".into()]
+    } else {
+        inventory
+            .iter()
+            .map(|item| item.get_name().clone())
+            .collect()
+    };
+    let inventory_index = menu(header, &options, INVENTORY_WIDTH, root);
+
+    if inventory.len() > 0 {
+        inventory_index
+    } else {
+        None
+    }
+}
+
+fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut Game, entities: &mut [Entity]) {
+    if let Some(item) = game.inventory[inventory_id].get_item() {
+        let on_use = match item {
+            Item::Heal => Entity::cast_heal,
+        };
+        match on_use(inventory_id, game, entities) {
+            UseResult::UsedUp => {
+                game.inventory.remove(inventory_id);
+            }
+            UseResult::Cancelled => {
+                game.messages.add("Cancelled", WHITE);
+            }
+        }
+    } else {
+        game.messages.add(
+            format!(
+                "The {} cannot be used.",
+                game.inventory[inventory_id].get_name()
+            ),
+            WHITE,
+        )
+    }
 }
