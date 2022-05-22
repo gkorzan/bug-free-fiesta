@@ -18,7 +18,7 @@ use tcod::map::Map as FovMap;
 use tcod::TextAlignment;
 use tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH};
 
-struct Tcod {
+pub struct Tcod {
     root: Root,
     con: Offscreen,
     panel: Offscreen,
@@ -413,12 +413,13 @@ fn inventory_menu(inventory: &[Entity], header: &str, root: &mut Root) -> Option
     }
 }
 
-fn use_item(inventory_id: usize, tcod: &mut Tcod, game: &mut Game, entities: &mut [Entity]) {
+fn use_item(inventory_id: usize, tcod: &Tcod, game: &mut Game, entities: &mut [Entity]) {
     if let Some(item) = game.inventory[inventory_id].get_item() {
         let on_use = match item {
             Item::Heal => Entity::cast_heal,
+            Item::Lightning => Entity::cast_lightning,
         };
-        match on_use(inventory_id, game, entities) {
+        match on_use(inventory_id, tcod, game, entities) {
             UseResult::UsedUp => {
                 game.inventory.remove(inventory_id);
             }

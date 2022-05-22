@@ -1,6 +1,9 @@
 use rand::Rng;
 use tcod::{
-    colors::{self, Color, DARK_RED, GREEN, LIGHT_VIOLET, ORANGE, RED, VIOLET, WHITE},
+    colors::{
+        self, Color, DARK_RED, GREEN, LIGHT_BLUE, LIGHT_VIOLET, LIGHT_YELLOW, ORANGE, RED, VIOLET,
+        WHITE,
+    },
     Console, Map as FovMap,
 };
 
@@ -15,6 +18,8 @@ const MAX_ROOM_MONSTERS: i32 = 3;
 const MAX_ROOM_ITEMS: i32 = 2;
 const HEAL_AMOUNT: i32 = 4;
 pub const PLAYER: usize = 0;
+const LIGHTNING_RANGE: i32 = 5;
+const LIGHTNING_DAMAGE: i32 = 20;
 
 // TODO : refactor player movement code types
 
@@ -61,6 +66,7 @@ pub struct Entity {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Item {
     Heal,
+    Lightning,
 }
 
 pub enum UseResult {
@@ -353,8 +359,17 @@ impl Entity {
             let y = rand::thread_rng().gen_range(y1 + 1..y2);
 
             if !Tile::is_blocked(x, y, map, entities) {
-                let mut item = Entity::new(x, y, '!', VIOLET, "healing potion", false);
-                item.item = Some(Item::Heal);
+                let dice = rand::random::<f32>();
+                let item = if dice < 0.7 {
+                    let mut item = Entity::new(x, y, '!', VIOLET, "healing potion", false);
+                    item.item = Some(Item::Heal);
+                    item
+                } else {
+                    let mut item =
+                        Entity::new(x, y, '#', LIGHT_YELLOW, "scroll of lightning bolt", false);
+                    item.item = Some(Item::Lightning);
+                    item
+                };
                 entities.push(item);
             }
         }
@@ -392,7 +407,12 @@ impl Entity {
         }
     }
 
-    pub fn cast_heal(_inventory_id: usize, game: &mut Game, entities: &mut [Entity]) -> UseResult {
+    pub fn cast_heal(
+        _inventory_id: usize,
+        _tcod: &Tcod,
+        game: &mut Game,
+        entities: &mut [Entity],
+    ) -> UseResult {
         if let Some(fighter) = entities[PLAYER].fighter {
             if fighter.hp == fighter.max_hp {
                 game.messages.add("You are already at full health", RED);
@@ -404,5 +424,52 @@ impl Entity {
             return UseResult::UsedUp;
         }
         UseResult::Cancelled
+    }
+
+    pub fn cast_lightning(
+        _inventory_id: usize,
+        tcod: &Tcod,
+        game: &mut Game,
+        entities: &mut [Entity],
+    ) -> UseResult {
+        let monster_id = Entity::closest_monster(tcod, entities, LIGHTNING_RANGE);
+        if let Some(monster_id) = monster_id {
+            game.messages.add(
+                format!(
+                    "A lightning bolt strikes the {} with a loud thunder \
+                    The damage is {} hit points",
+                    entities[monster_id].name, LIGHTNING_DAMAGE
+                ),
+                LIGHT_BLUE,
+            );
+
+            entities[monster_id].take_damage(LIGHTNING_DAMAGE, &mut game.messages);
+            UseResult::UsedUp
+        } else {
+            game.messages
+                .add("No enemy is close enough to strike.", RED);
+            UseResult::Cancelled
+        }
+    }
+
+    pub fn closest_monster(tcod: &Tcod, entities: &[Entity], max_range: i32) -> Option<usize> {
+        let mut closest_enemy = None;
+        let mut closest_dist = (max_range + 1) as f32;
+
+        for (id, entity) in entities.iter().enumerate() {
+            if (id != PLAYER)
+                && entity.fighter.is_some()
+                && entity.ai.is_some()
+                && tcod.fov.is_in_fov(entity.x, entity.y)
+            {
+                let dist = entities[PLAYER].distance_to(entity);
+                if dist < closest_dist {
+                    closest_enemy = Some(id);
+                    closest_dist = dist;
+                }
+            }
+        }
+
+        closest_enemy
     }
 }
