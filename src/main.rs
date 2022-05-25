@@ -10,7 +10,9 @@ use fov::generate_fov_map;
 use message::{Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X};
 use panel::render_bar;
 use room::Room;
-use tcod::colors::{Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, RED, WHITE, YELLOW};
+use tcod::colors::{
+    Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, LIGHT_YELLOW, RED, WHITE, YELLOW,
+};
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::{self, KeyCode::*};
 use tcod::input::{Event, Key, Mouse};
@@ -86,10 +88,13 @@ fn main() {
         mouse,
     };
 
+    main_menu(&mut tcod);
+}
+
+fn new_game(tcod: &mut Tcod) -> (Game, Vec<Entity>) {
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
     player.make_alive();
     player.make_fighter(30, 30, 2, 5, DeathCallback::Player);
-    let mut previous_player_position = (-1, -1);
     let npc = entity::Entity::new(
         SCREEN_WIDTH / 2 - 5,
         SCREEN_HEIGHT / 2,
@@ -114,7 +119,11 @@ fn main() {
         "Welcome stranger! Prepre to perish in the Tombs of the Ancient Kings.",
         RED,
     );
+    (game, entities)
+}
 
+fn play_game(tcod: &mut Tcod, game: &mut Game, entities: &mut Vec<Entity>) {
+    let mut previous_player_position = (-1, -1);
     // main game loop
     while !tcod.root.window_closed() {
         // prepare and draw scene
@@ -127,7 +136,7 @@ fn main() {
             _ => tcod.key = Default::default(),
         }
 
-        render_all(&mut tcod, &mut game, &entities, previous_player_position);
+        render_all(tcod, game, &entities, previous_player_position);
 
         // draw everything
         tcod.root.flush();
@@ -136,13 +145,53 @@ fn main() {
 
         // game controls
         previous_player_position = entities[PLAYER].get_coordinates();
-        let took_turn = player_controls(tcod.key, &mut game, &mut entities, &mut tcod);
+        let took_turn = player_controls(tcod.key, game, entities, tcod);
         let is_exit_presed = system_controls(tcod.key, &mut tcod.root);
-        Entity::mobs_turn(&mut game, &tcod.fov, &mut entities, took_turn);
+        Entity::mobs_turn(game, &tcod.fov, entities, took_turn);
         if is_exit_presed {
             break;
         }
         // end of the main loop
+    }
+}
+
+fn main_menu(tcod: &mut Tcod) {
+    let img = tcod::image::Image::from_file("menu_background.png")
+        .ok()
+        .expect("menu_background.png not found");
+
+    while !tcod.root.window_closed() {
+        tcod::image::blit_2x(&img, (0, 0), (-1, -1), &mut tcod.root, (0, 0));
+
+        tcod.root.set_default_foreground(LIGHT_YELLOW);
+        tcod.root.print_ex(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 - 4,
+            BackgroundFlag::None,
+            TextAlignment::Center,
+            "BUG FREE FIESTA",
+        );
+        tcod.root.print_ex(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - 2,
+            BackgroundFlag::None,
+            TextAlignment::Center,
+            "by Yours Truly",
+        );
+
+        let choices = &["Play a new game", "Continue last game", "Quit"];
+        let choice = menu("", choices, 24, &mut tcod.root);
+
+        match choice {
+            Some(0) => {
+                let (mut game, mut entities) = new_game(tcod);
+                play_game(tcod, &mut game, &mut entities);
+            }
+            Some(2) => {
+                break;
+            }
+            _ => {}
+        }
     }
 }
 
