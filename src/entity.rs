@@ -2,7 +2,7 @@ use rand::Rng;
 use tcod::{
     colors::{
         self, Color, DARK_RED, GREEN, LIGHT_BLUE, LIGHT_VIOLET, LIGHT_YELLOW, ORANGE, RED, VIOLET,
-        WHITE,
+        WHITE, YELLOW,
     },
     Console, Map as FovMap,
 };
@@ -107,6 +107,10 @@ impl Fighter {
 #[derive(Clone, Debug, PartialEq)]
 enum AI {
     Basic,
+    // Confused {
+    //     previous_ai: Box<AI>,
+    //     num_turns: i32,
+    // },
 }
 
 impl Entity {
@@ -405,6 +409,14 @@ impl Entity {
                 .add(format!("You picked up a {}", item.get_name()), GREEN);
             game.inventory.push(item);
         }
+    }
+
+    pub fn drop_item(inventory_id: usize, game: &mut Game, entities: &mut Vec<Entity>) {
+        let mut item = game.inventory.remove(inventory_id);
+        item.set_position(entities[PLAYER].x, entities[PLAYER].y);
+        game.messages
+            .add(format!("You dropped a {}", item.name), YELLOW);
+        entities.push(item);
     }
 
     pub fn cast_heal(

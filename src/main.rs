@@ -307,6 +307,17 @@ fn player_controls(key: Key, game: &mut Game, entities: &mut Vec<Entity>, tcod: 
             }
             false
         }
+        (Key { code: Text, .. }, "d", true) => {
+            let inventory_index = inventory_menu(
+                &game.inventory,
+                "Press the key next to an item to drop it, or any ohter to close menu\n",
+                &mut tcod.root,
+            );
+            if let Some(inventory_index) = inventory_index {
+                Entity::drop_item(inventory_index, game, entities);
+            }
+            false
+        }
         _ => false,
     }
 }
