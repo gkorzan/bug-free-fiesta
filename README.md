@@ -13,7 +13,7 @@ It is a **Rust** project you will need *rustc* and *cargo*
 **Acknowledgements**
 ---
 
-+ [@tomassedovic](https://github.com/tomassedovic) for great tutorial for begginers in rust and game dev in general.
++ [@tomassedovic](https://github.com/tomassedovic) for great tutorial for begginers in rust and game dev in general. Some dessidions made in tutorial are questionable, although it is great to get use to rust sintax end style.
 + [@darina-trotskaya](https://github.com/darina-trotskaya) for being supportive.
 
 
