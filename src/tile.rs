@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::entity::Entity;
 
 pub const MAP_WIDTH: i32 = 80;
@@ -5,7 +7,7 @@ pub const MAP_HEIGHT: i32 = 43;
 
 pub type Map = Vec<Vec<Tile>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Tile {
     passable: bool,
     block_sight: bool,

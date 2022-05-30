@@ -5,11 +5,14 @@ mod panel;
 mod room;
 mod tile;
 
+use std::io::{Read, Write};
+
 use entity::{DeathCallback, Entity, Item, UseResult, PLAYER};
 use fov::generate_fov_map;
 use message::{Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X};
 use panel::render_bar;
 use room::Room;
+use serde::{Deserialize, Serialize};
 use tcod::colors::{
     Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, LIGHT_YELLOW, RED, WHITE, YELLOW,
 };
@@ -29,6 +32,7 @@ pub struct Tcod {
     mouse: Mouse,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Game {
     map: Map,
     messages: Messages,
@@ -149,6 +153,7 @@ fn play_game(tcod: &mut Tcod, game: &mut Game, entities: &mut Vec<Entity>) {
         let is_exit_presed = system_controls(tcod.key, &mut tcod.root);
         Entity::mobs_turn(game, &tcod.fov, entities, took_turn);
         if is_exit_presed {
+            save_game(game, entities).unwrap();
             break;
         }
         // end of the main loop
@@ -187,6 +192,16 @@ fn main_menu(tcod: &mut Tcod) {
                 let (mut game, mut entities) = new_game(tcod);
                 play_game(tcod, &mut game, &mut entities);
             }
+            Some(1) => match load_game() {
+                Ok((mut game, mut entities)) => {
+                    generate_fov_map(&mut tcod.fov, &mut game.map);
+                    play_game(tcod, &mut game, &mut entities);
+                }
+                Err(_e) => {
+                    msgbox("\nNo saved game to load.\n", 24, &mut tcod.root);
+                    continue;
+                }
+            },
             Some(2) => {
                 break;
             }
@@ -455,6 +470,11 @@ fn menu<T: AsRef<str>>(header: &str, options: &[T], width: i32, root: &mut Root)
     }
 }
 
+fn msgbox(text: &str, width: i32, root: &mut Root) {
+    let options: &[&str] = &[];
+    menu(text, options, width, root);
+}
+
 fn inventory_menu(inventory: &[Entity], header: &str, root: &mut Root) -> Option<usize> {
     let options = if inventory.len() == 0 {
         vec!["Inventory is empty.".into()]
@@ -496,4 +516,22 @@ fn use_item(inventory_id: usize, tcod: &Tcod, game: &mut Game, entities: &mut [E
             WHITE,
         )
     }
+}
+
+fn save_game(game: &Game, entities: &[Entity]) -> Result<(), Box<dyn std::error::Error>> {
+    let save_data = serde_json::to_string(&(game, entities))?;
+    let mut file = match std::fs::File::create("savegame.json") {
+        Ok(f) => f,
+        Err(e) => return Err(Box::new(e)),
+    };
+    file.write_all(save_data.as_bytes())?;
+    Ok(())
+}
+
+fn load_game() -> Result<(Game, Vec<Entity>), Box<dyn std::error::Error>> {
+    let mut save_state = String::new();
+    let mut file = std::fs::File::open("savegame.json")?;
+    file.read_to_string(&mut save_state)?;
+    let result = serde_json::from_str::<(Game, Vec<Entity>)>(&save_state)?;
+    Ok(result)
 }

@@ -1,4 +1,5 @@
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use tcod::{
     colors::{
         self, Color, DARK_RED, GREEN, LIGHT_BLUE, LIGHT_VIOLET, LIGHT_YELLOW, ORANGE, RED, VIOLET,
@@ -49,7 +50,7 @@ const LIGHTNING_DAMAGE: i32 = 20;
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Entity {
     x: i32,
     y: i32,
@@ -63,7 +64,7 @@ pub struct Entity {
     item: Option<Item>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Item {
     Heal,
     Lightning,
@@ -74,7 +75,7 @@ pub enum UseResult {
     Cancelled,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DeathCallback {
     Player,
     Monster,
@@ -90,7 +91,7 @@ impl DeathCallback {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Fighter {
     max_hp: i32,
     hp: i32,
@@ -104,7 +105,7 @@ impl Fighter {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum AI {
     Basic,
     // Confused {
