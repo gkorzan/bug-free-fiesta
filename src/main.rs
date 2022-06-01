@@ -7,7 +7,7 @@ mod tile;
 
 use std::io::{Read, Write};
 
-use entity::{DeathCallback, Entity, Item, UseResult, PLAYER};
+use entity::{DeathCallback, Entity, Item, UseResult, LEVEL_UP_BASE, LEVEL_UP_FACTOR, PLAYER};
 use fov::generate_fov_map;
 use message::{Messages, MSG_HEIGHT, MSG_WIDTH, MSG_X};
 use panel::render_bar;
@@ -43,6 +43,8 @@ pub struct Game {
 const FONT_SIZE: i32 = 10;
 const SCREEN_WIDTH: i32 = 8 * FONT_SIZE;
 const SCREEN_HEIGHT: i32 = 5 * FONT_SIZE;
+const LEVEL_SCREEN_WIDTH: i32 = 40;
+const CHARACTER_SCREEN_WIDTH: i32 = 30;
 
 pub const BAR_WIDTH: i32 = 20;
 pub const PANEL_HEIGHT: i32 = 7;
@@ -99,7 +101,7 @@ fn main() {
 fn new_game(tcod: &mut Tcod) -> (Game, Vec<Entity>) {
     let mut player = entity::Entity::new(0, 0, '@', WHITE, "Player", true);
     player.make_alive();
-    player.make_fighter(30, 30, 2, 5, DeathCallback::Player);
+    player.make_fighter(30, 30, 2, 5, 0, DeathCallback::Player);
     let npc = entity::Entity::new(
         SCREEN_WIDTH / 2 - 5,
         SCREEN_HEIGHT / 2,
@@ -147,6 +149,7 @@ fn play_game(tcod: &mut Tcod, game: &mut Game, entities: &mut Vec<Entity>) {
         // draw everything
         tcod.root.flush();
 
+        Entity::level_up(tcod, game, entities);
         // let key = tcod.root.wait_for_keypress(true);
 
         // game controls
@@ -394,6 +397,33 @@ fn player_controls(key: Key, game: &mut Game, entities: &mut Vec<Entity>, tcod: 
             }
             false
         }
+        (Key { code: Text, .. }, "c", true) => {
+            let player = &entities[PLAYER];
+            let level = player.get_level();
+            let level_up_xp = LEVEL_UP_BASE + level * LEVEL_UP_FACTOR;
+            if let Some(fighter) = player.get_fighter().as_ref() {
+                let msg = format!(
+                    "Caracter information 
+                
+                Level: {}
+                Experience: {}
+                Experience to level up: {}
+                Maximum HP: {}
+                Attack: {}
+                Defence: {}
+                ",
+                    level,
+                    fighter.get_xp(),
+                    level_up_xp,
+                    fighter.get_hp().1,
+                    fighter.get_power(),
+                    fighter.get_defence()
+                );
+                msgbox(&msg, CHARACTER_SCREEN_WIDTH, &mut tcod.root);
+            }
+
+            false
+        }
         (Key { code: Text, .. }, "<", true) => {
             let is_player_on_stairs = entities.iter().any(|e| {
                 // e.get_coordinates() == entities[PLAYER].get_coordinates()
@@ -576,7 +606,8 @@ fn next_level(tcod: &mut Tcod, game: &mut Game, entities: &mut Vec<Entity>) {
     );
     game.dungeon_level += 1;
     assert_eq!(&entities[PLAYER] as *const _, &entities[0] as *const _);
-    entities.truncate(1);
+    // that will clear all the entities after Player, so it posible to save some
+    entities.truncate(PLAYER + 1);
     game.map = make_map(entities);
     generate_fov_map(&mut tcod.fov, &mut game.map);
 }

@@ -9,10 +9,11 @@ use tcod::{
 };
 
 use crate::{
+    menu,
     message::Messages,
     room::Room,
     tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
-    Game, Tcod,
+    Game, Tcod, LEVEL_SCREEN_WIDTH,
 };
 
 const MAX_ROOM_MONSTERS: i32 = 3;
@@ -22,6 +23,8 @@ pub const PLAYER: usize = 0;
 pub const FREDERIC: usize = 1;
 const LIGHTNING_RANGE: i32 = 5;
 const LIGHTNING_DAMAGE: i32 = 20;
+pub const LEVEL_UP_BASE: i32 = 200;
+pub const LEVEL_UP_FACTOR: i32 = 150;
 
 // TODO : refactor player movement code types
 
@@ -64,6 +67,7 @@ pub struct Entity {
     ai: Option<AI>,
     item: Option<Item>,
     always_visible: bool,
+    level: i32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -99,11 +103,21 @@ pub struct Fighter {
     hp: i32,
     defense: i32,
     power: i32,
+    xp: i32,
     on_death: DeathCallback,
 }
 impl Fighter {
     pub fn get_hp(&self) -> (i32, i32) {
         (self.hp, self.max_hp)
+    }
+    pub fn get_xp(&self) -> i32 {
+        self.xp
+    }
+    pub fn get_power(&self) -> i32 {
+        self.power
+    }
+    pub fn get_defence(&self) -> i32 {
+        self.defense
     }
 }
 
@@ -130,6 +144,7 @@ impl Entity {
             ai: None,
             item: None,
             always_visible: false,
+            level: 1,
         }
     }
 
@@ -247,6 +262,9 @@ impl Entity {
     pub fn get_item(&self) -> Option<Item> {
         self.item
     }
+    pub fn get_level(&self) -> i32 {
+        self.level
+    }
     pub fn make_alive(&mut self) {
         self.alive = true;
     }
@@ -272,7 +290,7 @@ impl Entity {
     pub fn is_alive(&self) -> bool {
         self.alive
     }
-    pub fn take_damage(&mut self, damage: i32, messages: &mut Messages) {
+    pub fn take_damage(&mut self, damage: i32, messages: &mut Messages) -> Option<i32> {
         if let Some(fighter) = self.fighter.as_mut() {
             if damage > 0 {
                 fighter.hp -= damage;
@@ -282,9 +300,11 @@ impl Entity {
         if let Some(fighter) = self.fighter {
             if fighter.hp <= 0 {
                 self.alive = false;
-                fighter.on_death.callback(self, messages)
+                fighter.on_death.callback(self, messages);
+                return Some(fighter.xp);
             }
         }
+        None
     }
     pub fn attack(&mut self, target: &mut Entity, messages: &mut Messages) {
         let damage = self.fighter.map_or(0, |f| f.power) - target.fighter.map_or(0, |f| f.defense);
@@ -296,7 +316,9 @@ impl Entity {
                 ),
                 WHITE,
             );
-            target.take_damage(damage, messages);
+            if let Some(xp) = target.take_damage(damage, messages) {
+                self.fighter.as_mut().unwrap().xp += xp;
+            }
         } else {
             messages.add(
                 format!(
@@ -323,6 +345,7 @@ impl Entity {
         hp: i32,
         defense: i32,
         power: i32,
+        xp: i32,
         on_death: DeathCallback,
     ) {
         self.fighter = Some(Fighter {
@@ -330,6 +353,7 @@ impl Entity {
             hp,
             defense,
             power,
+            xp,
             on_death,
         })
     }
@@ -352,13 +376,13 @@ impl Entity {
             if !Tile::is_blocked(x, y, map, entities) {
                 let mut monster = if do_generate_ork {
                     let mut ork = Entity::new(x, y, 'o', colors::DESATURATED_GREEN, "Ork", true);
-                    ork.make_fighter(10, 10, 0, 3, DeathCallback::Monster);
+                    ork.make_fighter(10, 10, 0, 3, 35, DeathCallback::Monster);
                     ork.set_ai();
                     ork
                 // generate ORK
                 } else {
                     let mut troll = Entity::new(x, y, 'T', colors::DARKER_GREEN, "Troll", true); // gen TROLL
-                    troll.make_fighter(16, 16, 1, 4, DeathCallback::Monster);
+                    troll.make_fighter(16, 16, 1, 4, 100, DeathCallback::Monster);
                     troll.set_ai();
                     troll
                 };
@@ -468,7 +492,10 @@ impl Entity {
                 LIGHT_BLUE,
             );
 
-            entities[monster_id].take_damage(LIGHTNING_DAMAGE, &mut game.messages);
+            if let Some(xp) = entities[monster_id].take_damage(LIGHTNING_DAMAGE, &mut game.messages)
+            {
+                entities[PLAYER].fighter.as_mut().unwrap().xp += xp;
+            };
             UseResult::UsedUp
         } else {
             game.messages
@@ -496,5 +523,49 @@ impl Entity {
         }
 
         closest_enemy
+    }
+
+    pub fn level_up(tcod: &mut Tcod, game: &mut Game, entities: &mut [Entity]) {
+        let player = &mut entities[PLAYER];
+        let level_up_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR;
+
+        if player.fighter.as_ref().map_or(0, |f| f.xp) >= level_up_xp {
+            player.level += 1;
+            game.messages.add(
+                format!(
+                    "Your battle skills grow stronger! You reached level {level}!",
+                    level = player.level
+                ),
+                YELLOW,
+            );
+            let fighter = player.fighter.as_mut().unwrap();
+            let mut choice = None;
+            while choice.is_none() {
+                choice = menu(
+                    "Level up! Choose a stat to raise:\n",
+                    &[
+                        format!("Constitution (+20 HP, from {})", fighter.max_hp),
+                        format!("Strength (+1 attach, from {})", fighter.power),
+                        format!("Agility (+1 defence, from {})", fighter.defense),
+                    ],
+                    LEVEL_SCREEN_WIDTH,
+                    &mut tcod.root,
+                );
+            }
+            fighter.xp -= level_up_xp;
+            match choice.unwrap() {
+                0 => {
+                    fighter.max_hp += 20;
+                    fighter.hp += 20;
+                }
+                1 => {
+                    fighter.power += 1;
+                }
+                2 => {
+                    fighter.defense += 1;
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }
