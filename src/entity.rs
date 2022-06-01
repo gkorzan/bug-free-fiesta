@@ -19,6 +19,7 @@ const MAX_ROOM_MONSTERS: i32 = 3;
 const MAX_ROOM_ITEMS: i32 = 2;
 const HEAL_AMOUNT: i32 = 4;
 pub const PLAYER: usize = 0;
+pub const FREDERIC: usize = 1;
 const LIGHTNING_RANGE: i32 = 5;
 const LIGHTNING_DAMAGE: i32 = 20;
 
@@ -62,6 +63,7 @@ pub struct Entity {
     fighter: Option<Fighter>,
     ai: Option<AI>,
     item: Option<Item>,
+    always_visible: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -127,6 +129,7 @@ impl Entity {
             fighter: None,
             ai: None,
             item: None,
+            always_visible: false,
         }
     }
 
@@ -218,6 +221,14 @@ impl Entity {
     pub fn draw(&self, con: &mut dyn Console) {
         con.set_default_foreground(self.color);
         con.put_char(self.x, self.y, self.char, tcod::BackgroundFlag::None)
+    }
+
+    pub fn make_always_visible(&mut self) {
+        self.always_visible = true;
+    }
+
+    pub fn is_always_visible(&self) -> bool {
+        self.always_visible
     }
 
     pub fn get_coordinates(&self) -> (i32, i32) {
@@ -365,7 +376,7 @@ impl Entity {
 
             if !Tile::is_blocked(x, y, map, entities) {
                 let dice = rand::random::<f32>();
-                let item = if dice < 0.7 {
+                let mut item = if dice < 0.7 {
                     let mut item = Entity::new(x, y, '!', VIOLET, "healing potion", false);
                     item.item = Some(Item::Heal);
                     item
@@ -375,6 +386,7 @@ impl Entity {
                     item.item = Some(Item::Lightning);
                     item
                 };
+                item.make_always_visible();
                 entities.push(item);
             }
         }

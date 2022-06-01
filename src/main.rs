@@ -14,7 +14,7 @@ use panel::render_bar;
 use room::Room;
 use serde::{Deserialize, Serialize};
 use tcod::colors::{
-    Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, LIGHT_YELLOW, RED, WHITE, YELLOW,
+    Color, BLACK, DARKER_RED, LIGHT_GREY, LIGHT_RED, LIGHT_YELLOW, RED, VIOLET, WHITE, YELLOW,
 };
 use tcod::console::{blit, BackgroundFlag, Console, FontLayout, FontType, Offscreen, Root};
 use tcod::input::{self, KeyCode::*};
@@ -37,6 +37,7 @@ pub struct Game {
     map: Map,
     messages: Messages,
     inventory: Vec<Entity>,
+    dungeon_level: u32,
 }
 
 const FONT_SIZE: i32 = 10;
@@ -118,6 +119,7 @@ fn new_game(tcod: &mut Tcod) -> (Game, Vec<Entity>) {
         map,
         messages,
         inventory,
+        dungeon_level: 1,
     };
     game.messages.add(
         "Welcome stranger! Prepre to perish in the Tombs of the Ancient Kings.",
@@ -241,6 +243,8 @@ fn render_all(
         .filter(|e1| {
             let e_pos = e1.get_coordinates();
             tcod.fov.is_in_fov(e_pos.0, e_pos.1)
+                || (e1.is_always_visible()
+                    && game.map[e_pos.0 as usize][e_pos.1 as usize].get_is_explored())
         })
         .collect();
     to_draw.sort_by(|o1, o2| o1.get_is_blocks().cmp(&o2.get_is_blocks()));
@@ -298,6 +302,14 @@ fn render_all(
         max_hp,
         LIGHT_RED,
         DARKER_RED,
+    );
+
+    tcod.panel.print_ex(
+        1,
+        3,
+        BackgroundFlag::None,
+        TextAlignment::Left,
+        format!("Dungeon level: {}", game.dungeon_level),
     );
 
     tcod.panel.set_default_foreground(LIGHT_GREY);
@@ -379,6 +391,17 @@ fn player_controls(key: Key, game: &mut Game, entities: &mut Vec<Entity>, tcod: 
             );
             if let Some(inventory_index) = inventory_index {
                 Entity::drop_item(inventory_index, game, entities);
+            }
+            false
+        }
+        (Key { code: Text, .. }, "<", true) => {
+            let is_player_on_stairs = entities.iter().any(|e| {
+                // e.get_coordinates() == entities[PLAYER].get_coordinates()
+                // &&
+                e.get_name() == "stairs"
+            });
+            if is_player_on_stairs {
+                next_level(tcod, game, entities);
             }
             false
         }
@@ -534,4 +557,26 @@ fn load_game() -> Result<(Game, Vec<Entity>), Box<dyn std::error::Error>> {
     file.read_to_string(&mut save_state)?;
     let result = serde_json::from_str::<(Game, Vec<Entity>)>(&save_state)?;
     Ok(result)
+}
+
+fn next_level(tcod: &mut Tcod, game: &mut Game, entities: &mut Vec<Entity>) {
+    game.messages.add(
+        "You take a moment to rest, and recover your strength.",
+        VIOLET,
+    );
+    let heal_hp_amount = entities[PLAYER]
+        .get_fighter()
+        .map_or(0, |f| f.get_hp().1 / 2);
+    entities[PLAYER].heal(heal_hp_amount);
+
+    game.messages.add(
+        "After a rare moment of peace you descend deeper into \
+    the heart of the dungeon...",
+        RED,
+    );
+    game.dungeon_level += 1;
+    assert_eq!(&entities[PLAYER] as *const _, &entities[0] as *const _);
+    entities.truncate(1);
+    game.map = make_map(entities);
+    generate_fov_map(&mut tcod.fov, &mut game.map);
 }

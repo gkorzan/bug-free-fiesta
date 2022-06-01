@@ -1,9 +1,10 @@
 use std::cmp;
 
 use rand::Rng;
+use tcod::colors::WHITE;
 
 use crate::{
-    entity::{Entity, PLAYER},
+    entity::{Entity, FREDERIC, PLAYER},
     tile::{Map, Tile, MAP_HEIGHT, MAP_WIDTH},
 };
 
@@ -64,6 +65,8 @@ impl Room {
         let mut rooms = Vec::<Room>::new();
         let mut player_x: i32 = 25;
         let mut player_y: i32 = 23;
+        let mut frederic_x = -1;
+        let mut frederic_y = -1;
 
         for _ in 0..MAX_ROOMS {
             // random width and height
@@ -86,6 +89,8 @@ impl Room {
                     // first room, and player coordiantes
                     player_x = new_x;
                     player_y = new_y;
+                    frederic_x = new_x - 2;
+                    frederic_y = new_y;
                 } else {
                     let (prev_x, prev_y) = rooms[rooms.len() - 1].get_center();
 
@@ -98,11 +103,16 @@ impl Room {
                         Room::create_v_tunel(prev_y, new_y, prev_x, map);
                         Room::create_h_tunel(prev_x, new_x, new_y, map);
                     }
+                    Entity::populate_room(&mut new_room, map, entities);
                 }
-                Entity::populate_room(&mut new_room, map, entities);
                 rooms.push(new_room);
             }
         }
+        let (last_room_x, last_room_y) = rooms[rooms.len() - 1].get_center();
+        let mut stairs = Entity::new(last_room_x, last_room_y, '<', WHITE, "stairs", false);
+        stairs.make_always_visible();
+        entities.push(stairs);
         entities[PLAYER].set_position(player_x, player_y);
+        entities[FREDERIC].set_position(frederic_x, frederic_y);
     }
 }
