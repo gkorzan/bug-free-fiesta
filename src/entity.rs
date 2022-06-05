@@ -280,7 +280,14 @@ impl Entity {
         player.kill();
     }
     fn monster_death(monster: &mut Entity, messages: &mut Messages) {
-        messages.add(format!("{} is dead!", monster.name), ORANGE);
+        messages.add(
+            format!(
+                "{} is dead! You gain {} xp!",
+                monster.name,
+                monster.fighter.unwrap().xp
+            ),
+            ORANGE,
+        );
 
         monster.kill();
         monster.blocks = false;

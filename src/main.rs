@@ -424,11 +424,10 @@ fn player_controls(key: Key, game: &mut Game, entities: &mut Vec<Entity>, tcod: 
 
             false
         }
-        (Key { code: Text, .. }, "<", true) => {
+        (Key { code: Text, .. }, "<", true) | (Key { code: Text, .. }, "e", true) => {
             let is_player_on_stairs = entities.iter().any(|e| {
-                // e.get_coordinates() == entities[PLAYER].get_coordinates()
-                // &&
-                e.get_name() == "stairs"
+                e.get_coordinates() == entities[PLAYER].get_coordinates()
+                    && e.get_name() == "stairs"
             });
             if is_player_on_stairs {
                 next_level(tcod, game, entities);
